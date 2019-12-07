@@ -199,6 +199,47 @@ void coalesceDate(struct parser* p, int end) {
 		setDay(p);
 	}
 }
+void coalesceTime(struct parser* p, int end) {
+	// 03:04:05
+	// 15:04:05
+	// 3:04:05
+	// 3:4:5
+	// 15:04:05.00
+	if (p->houri > 0) {
+		if (p->hourlen == 2) {
+			setParser(p, p->houri, "15");
+		} else if (p->hourlen == 1) {
+			setParser(p, p->houri, "3");
+		}
+	}
+	if (p->mini > 0) {
+		if (p->minlen == 0) {
+			p->minlen = end - p->mini;
+		}
+		if (p->minlen == 2) {
+			setParser(p, p->mini, "04");
+		} else {
+			setParser(p, p->mini, "4");
+		}
+	}
+	if (p->seci > 0) {
+		if (p->seclen == 0) {
+			p->seclen = end - p->seci;
+		}
+		if (p->seclen == 2) {
+			setParser(p, p->seci, "05");
+		} else {
+			setParser(p, p->seci, "5");
+		}
+	}
+
+	if (p->msi > 0) {
+		int i;
+		for (i = 0; i < p->mslen; i++) {
+			p->format[p->msi+i] = '0';
+		}
+	}
+}
 
 int parseTime(const char* datestr, struct timeval* tv);
 int parseAny(const char* datestr, struct timeval* tv){ return parseTime(datestr, tv); }
@@ -976,6 +1017,185 @@ int parseTime(const char* datestr, struct timeval* tv){
 		}
 		for (; i < len; i++) {
 			r = datestr[i];
+
+			switch (p.stateTime) {
+			case timeStart:
+				// 22:43:22
+				// 22:43
+				// timeComma
+				//   08:20:13,787
+				// timeWs
+				//   05:24:37 PM
+				//   06:20:00 UTC
+				//   06:20:00 UTC-05
+				//   00:12:00 +0000 UTC
+				//   22:18:00 +0000 UTC m=+0.000000001
+				//   15:04:05 -0700
+				//   15:04:05 -07:00
+				//   15:04:05 2008
+				// timeOffset
+				//   03:21:51+00:00
+				//   19:55:00+0100
+				// timePeriod
+				//   17:24:37.3186369
+				//   00:07:31.945167
+				//   18:31:59.257000000
+				//   00:00:00.000
+				//   timePeriodOffset
+				//     19:55:00.799+0100
+				//     timePeriodOffsetColon
+				//       15:04:05.999-07:00
+				//   timePeriodWs
+				//     timePeriodWsOffset
+				//       00:07:31.945167 +0000
+				//       00:00:00.000 +0000
+				//     timePeriodWsOffsetAlpha
+				//       00:07:31.945167 +0000 UTC
+				//       22:18:00.001 +0000 UTC m=+0.000000001
+				//       00:00:00.000 +0000 UTC
+				//     timePeriodWsAlpha
+				//       06:20:00.000 UTC
+				if (p.houri == 0) {
+					p.houri = i;
+				}
+				switch (r) {
+				case ',':
+					// hm, lets just swap out comma for period.  for some reason go
+					// won't parse it.
+					// 2014-05-11 08:20:13,787
+					strcpy(buf, datestr);
+					buf[i] = '.';
+					return parseTime(buf, tv);
+				case '+':
+				case '-':
+					//   03:21:51+00:00
+					p.stateTime = timeOffset;
+					if (p.seci == 0) {
+						// 22:18+0530
+						p.minlen = i - p.mini;
+					} else {
+						p.seclen = i - p.seci;
+					}
+					p.offseti = i;
+					break;
+				case '.':
+					p.stateTime = timePeriod;
+					p.seclen = i - p.seci;
+					p.msi = i + 1;
+					break;
+				case 'Z':
+					p.stateTime = timeZ;
+					if (p.seci == 0) {
+						p.minlen = i - p.mini;
+					} else {
+						p.seclen = i - p.seci;
+					}
+					break;
+				case 'A':
+				case 'a':
+					if (nextIs(&p, i, 't') || nextIs(&p, i, 'T')) {
+						//                    x
+						// September 17, 2012 at 5:00pm UTC-05
+						i++; // skip t
+						if (nextIs(&p, i, ' ')) {
+							//                      x
+							// September 17, 2012 at 5:00pm UTC-05
+							i++;         // skip '
+							p.houri = 0; // reset hour
+						}
+					} else {
+						if (r == 'a' && nextIs(&p, i, 'm')){
+							coalesceTime(&p, i);
+							setParser(&p, i, "am");
+						} else if (r == 'A' && nextIs(&p, i, 'M')){
+							coalesceTime(&p, i);
+							setParser(&p, i, "PM");
+						}
+					}
+					break;
+
+				case 'p':
+				case 'P':
+					// Could be AM/PM
+					if (r == 'p' && nextIs(&p, i, 'm')){
+						coalesceTime(&p, i);
+						setParser(&p, i, "pm");
+					} else if (r == 'P' && nextIs(&p, i, 'M')){
+						coalesceTime(&p, i);
+						setParser(&p, i, "PM");
+					}
+					break;
+				case ' ':
+					coalesceTime(&p, i);
+					p.stateTime = timeWs;
+					break;
+				case ':':
+					if (p.mini == 0) {
+						p.mini = i + 1;
+						p.hourlen = i - p.houri;
+					} else if (p.seci == 0) {
+						p.seci = i + 1;
+						p.minlen = i - p.mini;
+					}
+				}//inner switch
+				break;
+			case timeOffset:
+				// 19:55:00+0100
+				// timeOffsetColon
+				//   15:04:05+07:00
+				//   15:04:05-07:00
+				if (r == ':') { p.stateTime = timeOffsetColon; }
+				break;
+			case timeWs:
+				// timeWsAlpha
+				//   06:20:00 UTC
+				//   06:20:00 UTC-05
+				//   15:44:11 UTC+0100 2015
+				//   18:04:07 GMT+0100 (GMT Daylight Time)
+				//   17:57:51 MST 2009
+				//   timeWsAMPMMaybe
+				//     05:24:37 PM
+				// timeWsOffset
+				//   15:04:05 -0700
+				//   00:12:00 +0000 UTC
+				//   timeWsOffsetColon
+				//     15:04:05 -07:00
+				//     17:57:51 -0700 2009
+				//     timeWsOffsetColonAlpha
+				//       00:12:00 +00:00 UTC
+				// timeWsYear
+				//     00:12:00 2008
+				// timeZ
+				//   15:04:05.99Z
+				switch (r) {
+				case 'P':
+				case 'A':
+					// Could be AM/PM or could be PST or similar
+					p.tzi = i;
+					p.stateTime = timeWsAMPMMaybe;
+					break;
+				case '-':
+				case '+':
+					p.offseti = i;
+					p.stateTime = timeWsOffset;
+					break;
+				default:
+					if (isalpha(r)) {
+						// 06:20:00 UTC
+						// 06:20:00 UTC-05
+						// 15:44:11 UTC+0100 2015
+						// 17:57:51 MST 2009
+						p.tzi = i;
+						p.stateTime = timeWsAlpha;
+						//break iterTimeRunes
+					} else if (isdigit(r)) {
+						// 00:12:00 2008
+						p.stateTime = timeWsYear;
+						p.yeari = i;
+					}
+				}
+				break;
+			}//outer switch
 		}//for
 	}// time if
 
