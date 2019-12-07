@@ -819,7 +819,7 @@ int parseTime(const char* datestr, struct timeval* tv){
 			case 't':
 			case 'T':
 				if (nextIs(&p, i, 'h') || nextIs(&p, i, 'H')) {
-					if (strlen(datestr) > i+2) {
+					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, 50-i);
 						return parseTime(buf, tv);
@@ -829,7 +829,7 @@ int parseTime(const char* datestr, struct timeval* tv){
 			case 'n':
 			case 'N':
 				if (nextIs(&p, i, 'd') || nextIs(&p, i, 'D')) {
-					if (strlen(datestr) > i+2) {
+					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, 50-i);
 						return parseTime(buf, tv);
@@ -839,7 +839,7 @@ int parseTime(const char* datestr, struct timeval* tv){
 			case 's':
 			case 'S':
 				if (nextIs(&p, i, 't') || nextIs(&p, i, 'T')) {
-					if (strlen(datestr) > i+2) {
+					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, 50-i);
 						return parseTime(buf, tv);
@@ -849,7 +849,7 @@ int parseTime(const char* datestr, struct timeval* tv){
 			case 'r':
 			case 'R':
 				if (nextIs(&p, i, 'd') || nextIs(&p, i, 'D')) {
-					if (strlen(datestr) > i+2) {
+					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, 50-i);
 						return parseTime(buf, tv);
@@ -966,6 +966,19 @@ int parseTime(const char* datestr, struct timeval* tv){
 	} //for
 	endIterRunes:
 	coalesceDate(&p,i);
+	if (p.stateTime == timeStart) {
+		// increment first one, since the i++ occurs at end of loop
+		if (i < strlen(p.datestr)) i++;
+		// ensure we skip any whitespace prefix
+		for (; i < len; i++) {
+			r = datestr[i];
+			if (r != ' ') break;
+		}
+		for (; i < len; i++) {
+			r = datestr[i];
+		}//for
+	}// time if
+
 
 	return 0;
 }
