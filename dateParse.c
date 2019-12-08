@@ -40,7 +40,7 @@ enum dateStates {
 	dateWeekdayAbbrevComma
 };
 
-enum typeStates {
+enum timeStates {
 	timeIgnore,
 	timeStart,
 	timeWs,
@@ -97,7 +97,7 @@ struct parser {
 	int ambiguousMD;
 	unsigned char stateDate;
 	unsigned char stateTime;
-	char* format;
+	char format[60];
 	char* datestr;
 	char* fullMonth;
 	int skip;
@@ -126,12 +126,12 @@ struct parser {
 
 struct parser newParser(const char* s){
 	struct parser p;
+	memset(&p, 0, sizeof(struct parser));
 	p.stateDate = dateStart;
 	p.stateTime = timeIgnore;
 	p.datestr = s;
 	p.preferMonthFirst = 1;
-	p.format = malloc(strlen(s)+1);
-	strcpy(p.format, s);
+	strncpy(p.format, s, 60);
 	return p;
 }
 
@@ -165,14 +165,13 @@ void setDay(struct parser* p){
 	}
 
 }
-char* tolowerI(char* s, int i){
+//copy 9 lowercase chars to buffer for month comparison
+void lowerMonth(char* d, char* s){
+	strncpy(d,s,10);
 	int j;
-	if (strlen(s)<i) i = strlen(s);
-	char* ss = malloc(i+1);
-	for (j=0; j<i; ++j){
-		ss[j] = tolower(s[j]);
-	}
-	return ss;
+	for (j=0; j<9; ++j)
+		d[j] = tolower(d[j]);
+	d[10] = 0;
 }
 int isMonthFull(char* s){
 	int i;
@@ -253,8 +252,9 @@ int parseTime(const char* datestr, struct timeval* tv){
 
 	struct parser p = newParser(datestr);
 	int len = strlen(datestr), i=0, length;
-	char r, *month;
-	char buf[50];
+	if (len > 59) return -1;
+	char r;
+	char buf[60], month[10];
 
 	for (i=0; i<len; ++i){
 		r = datestr[i];
@@ -624,7 +624,7 @@ int parseTime(const char* datestr, struct timeval* tv){
 				// April 8, 2009
 				if (i > 3) {
 					// Check to see if the alpha is name of month?  or Day?
-					month = tolowerI(datestr,i);
+					lowerMonth(month, datestr);
 					if (isMonthFull(month)) {
 						p.fullMonth = month;
 						// len(" 31, 2018")   = 9
