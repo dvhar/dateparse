@@ -3,73 +3,78 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-const unsigned char dateStart =1;
-const unsigned char dateDigit =2 ;
-const unsigned char dateYearDash =3 ;
-const unsigned char dateYearDashAlphaDash =4 ;
-const unsigned char dateYearDashDash =5 ;
-const unsigned char dateYearDashDashWs =6 ;
-const unsigned char dateYearDashDashT =7 ;
-const unsigned char dateDigitDash =8 ;
-const unsigned char dateDigitDashAlpha =9 ;
-const unsigned char dateDigitDashAlphaDash =10 ;
-const unsigned char dateDigitDot =11 ;
-const unsigned char dateDigitDotDot =12 ;
-const unsigned char dateDigitSlash =13 ;
-const unsigned char dateDigitChineseYear =14 ;
-const unsigned char dateDigitChineseYearWs =15 ;
-const unsigned char dateDigitWs =16 ;
-const unsigned char dateDigitWsMoYear =17 ;
-const unsigned char dateDigitWsMolong =18 ;
-const unsigned char dateAlpha =19 ;
-const unsigned char dateAlphaWs =20 ;
-const unsigned char dateAlphaWsDigit =21 ;
-const unsigned char dateAlphaWsDigitMore =22 ;
-const unsigned char dateAlphaWsDigitMoreWs =23 ;
-const unsigned char dateAlphaWsDigitMoreWsYear =24 ;
-const unsigned char dateAlphaWsMonth =25 ;
-const unsigned char dateAlphaWsMonthMore =26 ;
-const unsigned char dateAlphaWsMonthSuffix =27 ;
-const unsigned char dateAlphaWsMore =28 ;
-const unsigned char dateAlphaWsAtTime =29 ;
-const unsigned char dateAlphaWsAlpha =30 ;
-const unsigned char dateAlphaWsAlphaYearmaybe =31 ;
-const unsigned char dateAlphaPeriodWsDigit =32 ;
-const unsigned char dateWeekdayComma =33 ;
-const unsigned char dateWeekdayAbbrevComma=34;
+enum dateStates {
+	dateStart,
+	dateDigit,
+	dateYearDash,
+	dateYearDashAlphaDash,
+	dateYearDashDash,
+	dateYearDashDashWs,
+	dateYearDashDashT,
+	dateDigitDash,
+	dateDigitDashAlpha,
+	dateDigitDashAlphaDash,
+	dateDigitDot,
+	dateDigitDotDot,
+	dateDigitSlash,
+	dateDigitChineseYear,
+	dateDigitChineseYearWs,
+	dateDigitWs,
+	dateDigitWsMoYear,
+	dateDigitWsMolong,
+	dateAlpha,
+	dateAlphaWs,
+	dateAlphaWsDigit,
+	dateAlphaWsDigitMore,
+	dateAlphaWsDigitMoreWs,
+	dateAlphaWsDigitMoreWsYear,
+	dateAlphaWsMonth,
+	dateAlphaWsMonthMore,
+	dateAlphaWsMonthSuffix,
+	dateAlphaWsMore,
+	dateAlphaWsAtTime,
+	dateAlphaWsAlpha,
+	dateAlphaWsAlphaYearmaybe,
+	dateAlphaPeriodWsDigit,
+	dateWeekdayComma,
+	dateWeekdayAbbrevComma
+};
 
-const unsigned char timeIgnore = 1 ;
-const unsigned char timeStart = 2 ;
-const unsigned char timeWs = 3 ;
-const unsigned char timeWsAlpha = 4 ;
-const unsigned char timeWsAlphaWs = 5 ;
-const unsigned char timeWsAlphaZoneOffset = 6 ;
-const unsigned char timeWsAlphaZoneOffsetWs = 7 ;
-const unsigned char timeWsAlphaZoneOffsetWsYear = 8 ;
-const unsigned char timeWsAlphaZoneOffsetWsExtra = 9 ;
-const unsigned char timeWsAMPMMaybe = 10 ;
-const unsigned char timeWsAMPM = 11 ;
-const unsigned char timeWsOffset = 12 ;
-const unsigned char timeWsOffsetWs = 13 ;
-const unsigned char timeWsOffsetColonAlpha = 14 ;
-const unsigned char timeWsOffsetColon = 15 ;
-const unsigned char timeWsYear = 16 ;
-const unsigned char timeOffset = 17 ;
-const unsigned char timeOffsetColon = 18 ;
-const unsigned char timeAlpha = 19 ;
-const unsigned char timePeriod = 20 ;
-const unsigned char timePeriodOffset = 21 ;
-const unsigned char timePeriodOffsetColon = 22 ;
-const unsigned char timePeriodOffsetColonWs = 23 ;
-const unsigned char timePeriodWs = 24 ;
-const unsigned char timePeriodWsAlpha = 25 ;
-const unsigned char timePeriodWsOffset = 26 ;
-const unsigned char timePeriodWsOffsetWs = 27 ;
-const unsigned char timePeriodWsOffsetWsAlpha = 28 ;
-const unsigned char timePeriodWsOffsetColon = 29 ;
-const unsigned char timePeriodWsOffsetColonAlpha = 30 ;
-const unsigned char timeZ = 31 ;
-const unsigned char timeZDigit= 32;
+enum typeStates {
+	timeIgnore,
+	timeStart,
+	timeWs,
+	timeWsAlpha,
+	timeWsAlphaWs,
+	timeWsAlphaZoneOffset,
+	timeWsAlphaZoneOffsetWs,
+	timeWsAlphaZoneOffsetWsYear,
+	timeWsAlphaZoneOffsetWsExtra,
+	timeWsAMPMMaybe,
+	timeWsAMPM,
+	timeWsOffset,
+	timeWsOffsetWs,
+	timeWsOffsetColonAlpha,
+	timeWsOffsetColon,
+	timeWsYear,
+	timeOffset,
+	timeOffsetColon,
+	timeAlpha,
+	timePeriod,
+	timePeriodOffset,
+	timePeriodOffsetColon,
+	timePeriodOffsetColonWs,
+	timePeriodWs,
+	timePeriodWsAlpha,
+	timePeriodWsOffset,
+	timePeriodWsOffsetWs,
+	timePeriodWsOffsetWsAlpha,
+	timePeriodWsOffsetColon,
+	timePeriodWsOffsetColonAlpha,
+	timeZ,
+	timeZDigit
+};
+
 
 char* months[] = {
 	"january",
@@ -242,7 +247,7 @@ void coalesceTime(struct parser* p, int end) {
 }
 
 int parseTime(const char* datestr, struct timeval* tv);
-int parseAny(const char* datestr, struct timeval* tv){ return parseTime(datestr, tv); }
+int dateParse(const char* datestr, struct timeval* tv){ return parseTime(datestr, tv); }
 
 int parseTime(const char* datestr, struct timeval* tv){
 
