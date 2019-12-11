@@ -98,7 +98,7 @@ struct parser {
 	unsigned char stateDate;
 	unsigned char stateTime;
 	char format[60];
-	char* datestr;
+	char datestr[60];
 	char* fullMonth;
 	int skip;
 	int extra;
@@ -129,8 +129,9 @@ struct parser newParser(const char* s){
 	memset(&p, 0, sizeof(struct parser));
 	p.stateDate = dateStart;
 	p.stateTime = timeIgnore;
-	p.datestr = s;
 	p.preferMonthFirst = 1;
+	//TODO: only strcpy if using trimExtra
+	strncpy(p.datestr, s, 60);
 	strncpy(p.format, s, 60);
 	return p;
 }
@@ -166,7 +167,7 @@ void setDay(struct parser* p){
 
 }
 //copy 9 lowercase chars to buffer for month comparison
-void lowerMonth(char* d, char* s){
+void lowerMonth(char* d, const char* s){
 	strncpy(d,s,10);
 	int j;
 	for (j=0; j<9; ++j)
@@ -243,6 +244,17 @@ void coalesceTime(struct parser* p, int end) {
 			p->format[p->msi+i] = '0';
 		}
 	}
+}
+void trimExtra(struct parser* p){
+	if (p->extra > 0 && strlen(p->format) > p->extra) {
+		p->format[p->extra] = 0;
+		p->datestr[p->extra] = 0;
+	}
+}
+int isInt(const char* s){
+	if (*s == 0) return 0;
+	while (*s && isdigit(*s)) ++s;
+	return *s == 0;
 }
 
 int parseTime(const char* datestr, struct timeval* tv);
@@ -1200,10 +1212,638 @@ int parseTime(const char* datestr, struct timeval* tv){
 					}
 				}
 				break;
+			case timeWsAlpha:
+				// 06:20:00 UTC
+				// 06:20:00 UTC-05
+				// timeWsAlphaWs
+				//   17:57:51 MST 2009
+				// timeWsAlphaZoneOffset
+				// timeWsAlphaZoneOffsetWs
+				//   timeWsAlphaZoneOffsetWsExtra
+				//     18:04:07 GMT+0100 (GMT Daylight Time)
+				//   timeWsAlphaZoneOffsetWsYear
+				//     15:44:11 UTC+0100 2015
+				switch (r) {
+				case '+':
+				case '-':
+					p.tzlen = i - p.tzi;
+					if (p.tzlen == 4) {
+						setParser(&p, p.tzi, " MST");
+					} else if (p.tzlen == 3) {
+						setParser(&p, p.tzi, "MST");
+					}
+					p.stateTime = timeWsAlphaZoneOffset;
+					p.offseti = i;
+					break;
+				case ' ':
+					// 17:57:51 MST 2009
+					p.tzlen = i - p.tzi;
+					if (p.tzlen == 4) {
+						setParser(&p, p.tzi, " MST");
+					} else if (p.tzlen == 3) {
+						setParser(&p, p.tzi, "MST");
+					}
+					p.stateTime = timeWsAlphaWs;
+					p.yeari = i + 1;
+					break;
+				}
+			case timeWsAlphaWs:
+				//   17:57:51 MST 2009
+				break;
+
+			case timeWsAlphaZoneOffset:
+				// 06:20:00 UTC-05
+				// timeWsAlphaZoneOffset
+				// timeWsAlphaZoneOffsetWs
+				//   timeWsAlphaZoneOffsetWsExtra
+				//     18:04:07 GMT+0100 (GMT Daylight Time)
+				//   timeWsAlphaZoneOffsetWsYear
+				//     15:44:11 UTC+0100 2015
+				switch (r) {
+				case ' ':
+					setParser(&p, p.offseti, "-0700");
+					p.yeari = i + 1;
+					p.stateTime = timeWsAlphaZoneOffsetWs;
+				}
+				break;
+			case timeWsAlphaZoneOffsetWs:
+				// timeWsAlphaZoneOffsetWs
+				//   timeWsAlphaZoneOffsetWsExtra
+				//     18:04:07 GMT+0100 (GMT Daylight Time)
+				//   timeWsAlphaZoneOffsetWsYear
+				//     15:44:11 UTC+0100 2015
+				if (isdigit(r)) {
+					p.stateTime = timeWsAlphaZoneOffsetWsYear;
+				} else {
+					p.extra = i - 1;
+					p.stateTime = timeWsAlphaZoneOffsetWsExtra;
+				}
+				break;
+			case timeWsAlphaZoneOffsetWsYear:
+				// 15:44:11 UTC+0100 2015
+				if (isdigit(r)) {
+					p.yearlen = i - p.yeari + 1;
+					if (p.yearlen == 4) {
+						setYear(&p);
+					}
+				}
+				break;
+			case timeWsAMPMMaybe:
+				// timeWsAMPMMaybe
+				//   timeWsAMPM
+				//     05:24:37 PM
+				//   timeWsAlpha
+				//     00:12:00 PST
+				//     15:44:11 UTC+0100 2015
+				if (r == 'M') {
+					//return parse("2006-01-02 03:04:05 PM", datestr, loc)
+					p.stateTime = timeWsAMPM;
+					setParser(&p, i-1, "PM");
+					if (p.hourlen == 2) {
+						setParser(&p, p.houri, "03");
+					} else if (p.hourlen == 1) {
+						setParser(&p, p.houri, "3");
+					}
+				} else {
+					p.stateTime = timeWsAlpha;
+				}
+				break;
+
+			case timeWsOffset:
+				// timeWsOffset
+				//   15:04:05 -0700
+				//   timeWsOffsetWsOffset
+				//     17:57:51 -0700 -07
+				//   timeWsOffsetWs
+				//     17:57:51 -0700 2009
+				//     00:12:00 +0000 UTC
+				//   timeWsOffsetColon
+				//     15:04:05 -07:00
+				//     timeWsOffsetColonAlpha
+				//       00:12:00 +00:00 UTC
+				switch (r) {
+				case ':':
+					p.stateTime = timeWsOffsetColon;
+					break;
+				case ' ':
+					setParser(&p, p.offseti, "-0700");
+					p.yeari = i + 1;
+					p.stateTime = timeWsOffsetWs;
+					break;
+				}
+				break;
+			case timeWsOffsetWs:
+				// 17:57:51 -0700 2009
+				// 00:12:00 +0000 UTC
+				// 22:18:00.001 +0000 UTC m=+0.000000001
+				// w Extra
+				//   17:57:51 -0700 -07
+				switch (r) {
+				case '=':
+					// eff you golang
+					if (datestr[i-1] == 'm') {
+						p.extra = i - 2;
+						trimExtra(&p);
+						break;
+					}
+					break;
+				case '+':
+				case '-':
+					// This really doesn't seem valid, but for some reason when round-tripping a go date
+					// their is an extra +03 printed out.  seems like go bug to me, but, parsing anyway.
+					// 00:00:00 +0300 +03
+					// 00:00:00 +0300 +0300
+					p.extra = i - 1;
+					p.stateTime = timeWsOffset;
+					trimExtra(&p);
+					break;
+				default:
+					if (isdigit(r)){
+						p.yearlen = i - p.yeari + 1;
+						if (p.yearlen == 4) {
+							setYear(&p);
+						}
+					} else if (isalpha(r)){
+						if (p.tzi == 0) {
+							p.tzi = i;
+						}
+					}
+					break;
+				}
+				break;
+
+			case timeWsOffsetColon:
+				// timeWsOffsetColon
+				//   15:04:05 -07:00
+				//   timeWsOffsetColonAlpha
+				//     2015-02-18 00:12:00 +00:00 UTC
+				if (isalpha(r)) {
+					// 2015-02-18 00:12:00 +00:00 UTC
+					p.stateTime = timeWsOffsetColonAlpha;
+					goto endIterTimeRunes;
+				}
+				break;
+			case timePeriod:
+				// 15:04:05.999999999+07:00
+				// 15:04:05.999999999-07:00
+				// 15:04:05.999999+07:00
+				// 15:04:05.999999-07:00
+				// 15:04:05.999+07:00
+				// 15:04:05.999-07:00
+				// timePeriod
+				//   17:24:37.3186369
+				//   00:07:31.945167
+				//   18:31:59.257000000
+				//   00:00:00.000
+				//   timePeriodOffset
+				//     19:55:00.799+0100
+				//     timePeriodOffsetColon
+				//       15:04:05.999-07:00
+				//   timePeriodWs
+				//     timePeriodWsOffset
+				//       00:07:31.945167 +0000
+				//       00:00:00.000 +0000
+				//       With Extra
+				//         00:00:00.000 +0300 +03
+				//     timePeriodWsOffsetAlpha
+				//       00:07:31.945167 +0000 UTC
+				//       00:00:00.000 +0000 UTC
+				//       22:18:00.001 +0000 UTC m=+0.000000001
+				//     timePeriodWsAlpha
+				//       06:20:00.000 UTC
+				switch (r) {
+				case ' ':
+					p.mslen = i - p.msi;
+					p.stateTime = timePeriodWs;
+					break;
+				case '+':
+				case '-':
+					// This really shouldn't happen
+					p.mslen = i - p.msi;
+					p.offseti = i;
+					p.stateTime = timePeriodOffset;
+					break;
+				default:
+					if (isalpha(r)) {
+						// 06:20:00.000 UTC
+						p.mslen = i - p.msi;
+						p.stateTime = timePeriodWsAlpha;
+					}
+					break;
+				}
+				break;
+			case timePeriodOffset:
+				// timePeriodOffset
+				//   19:55:00.799+0100
+				//   timePeriodOffsetColon
+				//     15:04:05.999-07:00
+				//     13:31:51.999-07:00 MST
+				if (r == ':') {
+					p.stateTime = timePeriodOffsetColon;
+				}
+				break;
+			case timePeriodOffsetColon:
+				// timePeriodOffset
+				//   timePeriodOffsetColon
+				//     15:04:05.999-07:00
+				//     13:31:51.999 -07:00 MST
+				switch (r) {
+				case ' ':
+					setParser(&p, p.offseti, "-07:00");
+					p.stateTime = timePeriodOffsetColonWs;
+					p.tzi = i + 1;
+				}
+				break;
+			case timePeriodOffsetColonWs:
+				// continue
+				break;
+			case timePeriodWs:
+				// timePeriodWs
+				//   timePeriodWsOffset
+				//     00:07:31.945167 +0000
+				//     00:00:00.000 +0000
+				//   timePeriodWsOffsetAlpha
+				//     00:07:31.945167 +0000 UTC
+				//     00:00:00.000 +0000 UTC
+				//   timePeriodWsOffsetColon
+				//     13:31:51.999 -07:00 MST
+				//   timePeriodWsAlpha
+				//     06:20:00.000 UTC
+				if (p.offseti == 0) {
+					p.offseti = i;
+				}
+				switch (r) {
+				case '+':
+				case '-':
+					p.mslen = i - p.msi - 1;
+					p.stateTime = timePeriodWsOffset;
+					break;
+				default:
+					if (isalpha(r)) {
+						//     00:07:31.945167 +0000 UTC
+						//     00:00:00.000 +0000 UTC
+						p.stateTime = timePeriodWsOffsetWsAlpha;
+						goto endIterTimeRunes;
+					}
+				}
+				break;
+
+			case timePeriodWsOffset:
+				// timePeriodWs
+				//   timePeriodWsOffset
+				//     00:07:31.945167 +0000
+				//     00:00:00.000 +0000
+				//     With Extra
+				//       00:00:00.000 +0300 +03
+				//   timePeriodWsOffsetAlpha
+				//     00:07:31.945167 +0000 UTC
+				//     00:00:00.000 +0000 UTC
+				//     03:02:00.001 +0300 MSK m=+0.000000001
+				//   timePeriodWsOffsetColon
+				//     13:31:51.999 -07:00 MST
+				//   timePeriodWsAlpha
+				//     06:20:00.000 UTC
+				switch (r) {
+				case ':':
+					p.stateTime = timePeriodWsOffsetColon;
+					break;
+				case ' ':
+					setParser(&p, p.offseti, "-0700");
+					break;
+				case '-':
+				case '+':
+					// This really doesn't seem valid, but for some reason when round-tripping a go date
+					// their is an extra +03 printed out.  seems like go bug to me, but, parsing anyway.
+					// 00:00:00.000 +0300 +03
+					// 00:00:00.000 +0300 +0300
+					p.extra = i - 1;
+					trimExtra(&p);
+					break;
+				default:
+					if (isalpha(r)) {
+						// 00:07:31.945167 +0000 UTC
+						// 00:00:00.000 +0000 UTC
+						// 03:02:00.001 +0300 MSK m=+0.000000001
+						p.stateTime = timePeriodWsOffsetWsAlpha;
+					}
+					break;
+				}
+				break;
+			case timePeriodWsOffsetWsAlpha:
+				// 03:02:00.001 +0300 MSK m=+0.000000001
+				// eff you golang
+				if (r == '=' && datestr[i-1] == 'm') {
+					p.extra = i - 2;
+					trimExtra(&p);
+					break;
+				}
+				break;
+
+			case timePeriodWsOffsetColon:
+				// 13:31:51.999 -07:00 MST
+				switch (r) {
+				case ' ':
+					setParser(&p, p.offseti, "-07:00");
+					break;
+				default:
+					if (isalpha(r)) {
+						// 13:31:51.999 -07:00 MST
+						p.tzi = i;
+						p.stateTime = timePeriodWsOffsetColonAlpha;
+					}
+				}
+				break;
+			case timePeriodWsOffsetColonAlpha:
+				// continue
+				break;
+			case timeZ:
+				// timeZ
+				//   15:04:05.99Z
+				// With a time-zone at end after Z
+				// 2006-01-02T15:04:05.999999999Z07:00
+				// 2006-01-02T15:04:05Z07:00
+				// RFC3339     = "2006-01-02T15:04:05Z07:00"
+				// RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
+				if (isdigit(r)) {
+					p.stateTime = timeZDigit;
+				}
+				break;
+
 			}//outer switch
 		}//for
+		endIterTimeRunes:
+
+		switch (p.stateTime) {
+		case timeWsAlphaWs:
+			p.yearlen = i - p.yeari;
+			setYear(&p);
+			break;
+		case timeWsYear:
+			p.yearlen = i - p.yeari;
+			setYear(&p);
+			break;
+		case timeWsAlphaZoneOffsetWsExtra:
+			trimExtra(&p);
+			break;
+		case timeWsAlphaZoneOffset:
+			// 06:20:00 UTC-05
+			if (i-p.offseti < 4) {
+				setParser(&p, p.offseti, "-07");
+			} else {
+				setParser(&p, p.offseti, "-0700");
+			}
+			break;
+
+		case timePeriod:
+			p.mslen = i - p.msi;
+			break;
+		case timeOffset:
+			// 19:55:00+0100
+			setParser(&p, p.offseti, "-0700");
+			break;
+		case timeWsOffset:
+			setParser(&p, p.offseti, "-0700");
+			break;
+		case timeWsOffsetWs:
+			// 17:57:51 -0700 2009
+			// 00:12:00 +0000 UTC
+			break;
+		case timeWsOffsetColon:
+			// 17:57:51 -07:00
+			setParser(&p, p.offseti, "-07:00");
+			break;
+		case timeOffsetColon:
+			// 15:04:05+07:00
+			setParser(&p, p.offseti, "-07:00");
+			break;
+		case timePeriodOffset:
+			// 19:55:00.799+0100
+			setParser(&p, p.offseti, "-0700");
+			break;
+		case timePeriodOffsetColon:
+			setParser(&p, p.offseti, "-07:00");
+			break;
+		case timePeriodWsOffsetColonAlpha:
+			p.tzlen = i - p.tzi;
+			switch (p.tzlen) {
+			case 3:
+				setParser(&p, p.tzi, "MST");
+				break;
+			case 4:
+				setParser(&p, p.tzi, "MST ");
+				break;
+			}
+			break;
+		case timePeriodWsOffset:
+			setParser(&p, p.offseti, "-0700");
+			break;
+		}
+		coalesceTime(&p, i);
 	}// time if
 
+	struct timeval t;
+	switch (p.stateDate) {
+	case dateDigit:
+		// unixy timestamps ish
+		//  example              ct type
+		//  1499979655583057426  19 nanoseconds
+		//  1499979795437000     16 micro-seconds
+		//  20180722105203       14 yyyyMMddhhmmss
+		//  1499979795437        13 milliseconds
+		//  1332151919           10 seconds
+		//  20140601             8  yyyymmdd
+		//  2014                 4  yyyy
+		if (strlen(datestr) == strlen("1499979655583057426")) { // 19
+			// nano-seconds
+			if (isInt(datestr)) {
+				long long  nanoSecs = strtoll(datestr, NULL, 10);
+				t.tv_sec = nanoSecs /  1000000000;
+				t.tv_usec = nanoSecs / 1000;
+			}
+		} else if (strlen(datestr) == strlen("1499979795437000")) { // 16
+			// micro-seconds
+			if (isInt(datestr)) {
+				long long  microSecs = strtoll(datestr, NULL, 10);
+				t.tv_sec = microSecs /  1000000;
+				t.tv_usec = microSecs;
+			}
+		} else if (strlen(datestr) == strlen("yyyyMMddhhmmss")) { // 14
+			// yyyyMMddhhmmss
+			strcpy(p.format, "20060102150405");
+			return 0;
+		} else if (strlen(datestr) == strlen("1332151919000")) { // 13
+			if (isInt(datestr)) {
+				long long  milliseconds = strtoll(datestr, NULL, 10);
+				t.tv_sec = milliseconds /  1000;
+				t.tv_usec = milliseconds * 1000;
+			}
+		} else if (strlen(datestr) == strlen("1332151919")) { //10
+			if (isInt(datestr)) {
+				long  secs = strtol(datestr, NULL, 10);
+				t.tv_sec = secs;
+				t.tv_usec = 0;
+			}
+		} else if (strlen(datestr) == strlen("20140601")) {
+			strcpy(p.format, "20060102");
+			return 0;
+		} else if (strlen(datestr) == strlen("2014")) {
+			strcpy(p.format, "2006");
+			return 0;
+		} else if (strlen(datestr) < 4) {
+			return -1;
+		}
+		//TODO: everything below this line
+		if (t.tv_sec != 0 && t.tv_usec != 0){
+			//if loc == nil {
+				p.t = t;
+				return 0;
+			//}
+			//t = t.In(loc)
+			//p.t = &t
+			//return p, nil
+		}
+		break;
 
-	return 0;
+	case dateYearDash:
+		// 2006-01
+		return 0;
+
+	case dateYearDashDash:
+		// 2006-01-02
+		// 2006-1-02
+		// 2006-1-2
+		// 2006-01-2
+		return 0;
+
+	case dateYearDashAlphaDash:
+		// 2013-Feb-03
+		// 2013-Feb-3
+		p.daylen = i - p.dayi;
+		setDay(&p);
+		return 0;
+
+	case dateYearDashDashWs:
+		// 2013-04-01
+		return 0;
+
+	case dateYearDashDashT:
+		return 0;
+
+	case dateDigitDashAlphaDash:
+		// 13-Feb-03   ambiguous
+		// 28-Feb-03   ambiguous
+		// 29-Jun-2016
+		length = strlen(datestr) - (p.moi + p.molen + 1);
+		if (length == 4) {
+			p.yearlen = 4;
+			setParser(&p, p.yeari, "2006");
+			// We now also know that part1 was the day
+			p.dayi = 0;
+			p.daylen = p.part1Len;
+			setDay(&p);
+		} else if (length == 2) {
+			// We have no idea if this is
+			// yy-mon-dd   OR  dd-mon-yy
+			//
+			// We are going to ASSUME (bad, bad) that it is dd-mon-yy  which is a horible assumption
+			p.ambiguousMD = 1;
+			p.yearlen = 2;
+			setParser(&p, p.yeari, "06");
+			// We now also know that part1 was the day
+			p.dayi = 0;
+			p.daylen = p.part1Len;
+			setDay(&p);
+		}
+		return 0;
+
+	case dateDigitDot:
+		// 2014.05
+		p.molen = i - p.moi;
+		setMonth(&p);
+		return 0;
+
+	case dateDigitDotDot:
+		// 03.31.1981
+		// 3.31.2014
+		// 3.2.1981
+		// 3.2.81
+		// 08.21.71
+		// 2018.09.30
+		return 0;
+
+	case dateDigitWsMoYear:
+		// 2 Jan 2018
+		// 2 Jan 18
+		// 2 Jan 2018 23:59
+		// 02 Jan 2018 23:59
+		// 12 Feb 2006, 19:17
+		return 0;
+
+	case dateDigitWsMolong:
+		// 18 January 2018
+		// 8 January 2018
+		if (p.daylen == 2) {
+			strcpy(p.format, "02 January 2006");
+			return 0;
+		}
+		strcpy(p.format, "2 January 2006");
+		return 0; // parse("2 January 2006", datestr, loc)
+
+	case dateAlphaWsMonth:
+		p.yearlen = i - p.yeari;
+		setYear(&p);
+		return 0;
+
+	case dateAlphaWsMonthMore:
+		return 0;
+
+	case dateAlphaWsDigitMoreWs:
+		// oct 1, 1970
+		p.yearlen = i - p.yeari;
+		setYear(&p);
+		return 0;
+
+	case dateAlphaWsDigitMoreWsYear:
+		// May 8, 2009 5:57:51 PM
+		// Jun 7, 2005, 05:57:51
+		return 0;
+
+	case dateAlphaWsAlpha:
+		return 0;
+
+	case dateAlphaWsAlphaYearmaybe:
+		return 0;
+
+	case dateDigitSlash:
+		// 3/1/2014
+		// 10/13/2014
+		// 01/02/2006
+		// 2014/10/13
+		return 0;
+
+	//case dateDigitChineseYear:
+		// dateDigitChineseYear
+		//   2014年04月08日
+		//strcpy(p.format, "2006年01月02日");
+		//return 0;
+
+	//case dateDigitChineseYearWs:
+		//p.format = []byte("2006年01月02日 15:04:05")
+		//return p, nil
+
+	case dateWeekdayComma:
+		// Monday, 02 Jan 2006 15:04:05 -0700
+		// Monday, 02 Jan 2006 15:04:05 +0100
+		// Monday, 02-Jan-06 15:04:05 MST
+		return 0;
+
+	case dateWeekdayAbbrevComma:
+		// Mon, 02-Jan-06 15:04:05 MST
+		// Mon, 02 Jan 2006 15:04:05 MST
+		return 0;
+
+	}
+
+
+	return -1;
 }
