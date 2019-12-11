@@ -76,7 +76,7 @@ enum timeStates {
 };
 
 
-char* months[] = {
+static char* months[] = {
 	"january",
 	"february",
 	"march",
@@ -124,7 +124,7 @@ struct parser {
 	struct timeval t;
 };
 
-struct parser* newParser(const char* s){
+static struct parser* newParser(const char* s){
 	struct parser* p = malloc(sizeof(struct parser));
 	memset(p, 0, sizeof(struct parser));
 	p->stateDate = dateStart;
@@ -136,7 +136,7 @@ struct parser* newParser(const char* s){
 	return p;
 }
 
-void setParser(struct parser* p, int start, char* val){
+static void setParser(struct parser* p, int start, char* val){
 	if (start < 0) return;
 	int vlen = strlen(val), i;
 	if (strlen(p->format) < start + vlen) return;
@@ -144,21 +144,21 @@ void setParser(struct parser* p, int start, char* val){
 		p->format[start+i] = val[i];
 	}
 }
-void setYear(struct parser* p){
+static void setYear(struct parser* p){
 	if (p->yearlen == 2) {
 		setParser(p, p->yeari, "06");
 	} else if (p->yearlen == 4) {
 		setParser(p, p->yeari, "2006");
 	}
 }
-void setMonth(struct parser* p){
+static void setMonth(struct parser* p){
 	if (p->molen == 2) {
 		setParser(p, p->moi, "01");
 	} else if (p->molen == 1) {
 		setParser(p, p->moi, "1");
 	}
 }
-void setDay(struct parser* p){
+static void setDay(struct parser* p){
 	if (p->daylen == 2) {
 		setParser(p, p->dayi, "02");
 	} else if (p->daylen == 1) {
@@ -167,14 +167,14 @@ void setDay(struct parser* p){
 
 }
 //copy 9 lowercase chars to buffer for month comparison
-void lowerMonth(char* d, const char* s){
+static void lowerMonth(char* d, const char* s){
 	strncpy(d,s,10);
 	int j;
 	for (j=0; j<9; ++j)
 		d[j] = tolower(d[j]);
 	d[10] = 0;
 }
-int isMonthFull(char* s){
+static int isMonthFull(char* s){
 	int i;
 	for (i=0; i<12; ++i){
 		if (!strcmp(s, months[i]))
@@ -182,13 +182,13 @@ int isMonthFull(char* s){
 	}
 	return 0;
 }
-int nextIs(struct parser* p, int i, char c){
+static int nextIs(struct parser* p, int i, char c){
 	if (strlen(p->datestr) > i+1 && p->datestr[i+1] == c) {
 		return 1;
 	}
 	return 0;
 }
-void coalesceDate(struct parser* p, int end) {
+static void coalesceDate(struct parser* p, int end) {
 	if (p->yeari > 0) {
 		if (p->yearlen == 0) {
 			p->yearlen = end - p->yeari;
@@ -204,7 +204,7 @@ void coalesceDate(struct parser* p, int end) {
 		setDay(p);
 	}
 }
-void coalesceTime(struct parser* p, int end) {
+static void coalesceTime(struct parser* p, int end) {
 	// 03:04:05
 	// 15:04:05
 	// 3:04:05
@@ -245,19 +245,19 @@ void coalesceTime(struct parser* p, int end) {
 		}
 	}
 }
-void trimExtra(struct parser* p){
+static void trimExtra(struct parser* p){
 	if (p->extra > 0 && strlen(p->format) > p->extra) {
 		p->format[p->extra] = 0;
 		p->datestr[p->extra] = 0;
 	}
 }
-int isInt(const char* s){
+static int isInt(const char* s){
 	if (*s == 0) return 0;
 	while (*s && isdigit(*s)) ++s;
 	return *s == 0;
 }
-int parse(struct parser* p, struct timeval *tv);
-int parseTime(const char* datestr, struct parser* p);
+static int parse(struct parser* p, struct timeval *tv);
+static int parseTime(const char* datestr, struct parser* p);
 int dateParse(const char* datestr, struct timeval* tv){
 	struct parser* p;
 	if (parseTime(datestr, p))
@@ -267,7 +267,7 @@ int dateParse(const char* datestr, struct timeval* tv){
 	return err;
 }
 
-int parseTime(const char* datestr, struct parser* p){
+static int parseTime(const char* datestr, struct parser* p){
 
 	p = newParser(datestr);
 	int len = strlen(datestr), i=0, length;
