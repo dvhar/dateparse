@@ -2,6 +2,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 enum dateStates {
 	dateStart,
@@ -124,8 +125,7 @@ struct parser {
 	struct timeval t;
 };
 
-static struct parser* newParser(const char* s){
-	struct parser* p = malloc(sizeof(struct parser));
+static void newParser(const char* s, struct parser* p){
 	memset(p, 0, sizeof(struct parser));
 	p->stateDate = dateStart;
 	p->stateTime = timeIgnore;
@@ -133,7 +133,6 @@ static struct parser* newParser(const char* s){
 	//TODO: only strcpy if using trimExtra
 	strncpy(p->datestr, s, 60);
 	strncpy(p->format, s, 60);
-	return p;
 }
 
 static void setParser(struct parser* p, int start, char* val){
@@ -245,6 +244,13 @@ static void coalesceTime(struct parser* p, int end) {
 		}
 	}
 }
+static void setFullMonth(struct parser* p, char* month){
+	if (p->moi == 0){
+		char b[50];
+		sprintf(b, "%s:%s", "January", p->format+strlen(month));
+		strcpy(p->format, b);
+	}
+}
 static void trimExtra(struct parser* p){
 	if (p->extra > 0 && strlen(p->format) > p->extra) {
 		p->format[p->extra] = 0;
@@ -259,17 +265,15 @@ static int isInt(const char* s){
 static int parse(struct parser* p, struct timeval *tv);
 static int parseTime(const char* datestr, struct parser* p);
 int dateParse(const char* datestr, struct timeval* tv){
-	struct parser* p;
-	if (parseTime(datestr, p))
+	struct parser p;
+	if (parseTime(datestr, &p))
 		return -1;
-	int err = parse(p, tv);
-	free(p);
-	return err;
+	return parse(&p, tv);
 }
 
 static int parseTime(const char* datestr, struct parser* p){
 
-	p = newParser(datestr);
+	 newParser(datestr, p);
 	int len = strlen(datestr), i=0, length;
 	if (len > 59) return -1;
 	char r;
@@ -1853,4 +1857,15 @@ static int parseTime(const char* datestr, struct parser* p){
 
 
 	return -1;
+}
+
+static int parse(struct parser* p, struct timeval *tv){
+	if (p->t.tv_sec || p->t.tv_usec){
+		tv->tv_sec = p->t.tv_sec;
+		tv->tv_usec = p->t.tv_usec;
+		return 0;
+	}
+	if (strlen(p->fullMonth) > 0)
+		setFullMonth(p, p->fullMonth);
+	return 0;
 }
