@@ -98,8 +98,10 @@ struct parser {
 	int ambiguousMD;
 	unsigned char stateDate;
 	unsigned char stateTime;
-	char format[60];
-	char datestr[60];
+	char* format;
+	char formatbuf[60];
+	char* datestr;
+	char datestrbuf[60];
 	char* fullMonth;
 	int skip;
 	int extra;
@@ -130,6 +132,8 @@ static void newParser(const char* s, struct parser* p){
 	p->stateDate = dateStart;
 	p->stateTime = timeIgnore;
 	p->preferMonthFirst = 1;
+	p->format = p->formatbuf;
+	p->datestr = p->datestrbuf;
 	//TODO: only strcpy if using trimExtra
 	strncpy(p->datestr, s, 60);
 	strncpy(p->format, s, 60);
@@ -1703,7 +1707,6 @@ static int parseTime(const char* datestr, struct parser* p){
 		} else if (strlen(datestr) < 4) {
 			return -1;
 		}
-		//TODO: everything below this line
 		if (t.tv_sec != 0 && t.tv_usec != 0){
 			//if loc == nil {
 				p->t = t;
@@ -1867,5 +1870,13 @@ static int parse(struct parser* p, struct timeval *tv){
 	}
 	if (strlen(p->fullMonth) > 0)
 		setFullMonth(p, p->fullMonth);
+	if (p->skip > 0 && strlen(p->format) > p->skip) {
+		p->format = p->format+p->skip;
+		p->datestr = p->datestr+p->skip;
+	}
+	struct tm t;
+	if (!strptime(p->datestr, p->format, &t))
+		return -1;
+	tv->tv_sec = mktime(&t);
 	return 0;
 }
