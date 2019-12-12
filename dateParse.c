@@ -3,6 +3,8 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
+#define BUFSIZE 100
+#define MONTHBUF 14
 
 enum dateStates {
 	dateStart,
@@ -99,10 +101,10 @@ struct parser {
 	unsigned char stateDate;
 	unsigned char stateTime;
 	char* format;
-	char formatbuf[60];
+	char formatbuf[BUFSIZE];
 	char* datestr;
-	char datestrbuf[60];
-	char* fullMonth;
+	char datestrbuf[BUFSIZE];
+	char fullMonth[MONTHBUF];
 	int skip;
 	int extra;
 	int part1Len;
@@ -128,6 +130,7 @@ struct parser {
 };
 
 static void newParser(const char* s, struct parser* p){
+	//puts("newparser");
 	memset(p, 0, sizeof(struct parser));
 	p->stateDate = dateStart;
 	p->stateTime = timeIgnore;
@@ -135,11 +138,12 @@ static void newParser(const char* s, struct parser* p){
 	p->format = p->formatbuf;
 	p->datestr = p->datestrbuf;
 	//TODO: only strcpy if using trimExtra
-	strncpy(p->datestr, s, 60);
-	strncpy(p->format, s, 60);
+	strncpy(p->datestr, s, BUFSIZE);
+	strncpy(p->format, s, BUFSIZE);
 }
 
 static void setParser(struct parser* p, int start, char* val){
+	//printf("setparser %s\n", val);
 	if (start < 0) return;
 	int vlen = strlen(val), i;
 	if (strlen(p->format) < start + vlen) return;
@@ -171,6 +175,7 @@ static void setDay(struct parser* p){
 }
 //copy 9 lowercase chars to buffer for month comparison
 static void lowerMonth(char* d, const char* s){
+	//printf("lowermonth %s\n", s);
 	strncpy(d,s,10);
 	int j;
 	for (j=0; j<9; ++j)
@@ -178,6 +183,7 @@ static void lowerMonth(char* d, const char* s){
 	d[10] = 0;
 }
 static int isMonthFull(char* s){
+	printf("isfullmonth %s\n", s);
 	int i;
 	for (i=0; i<12; ++i){
 		if (!strcmp(s, months[i]))
@@ -192,6 +198,7 @@ static int nextIs(struct parser* p, int i, char c){
 	return 0;
 }
 static void coalesceDate(struct parser* p, int end) {
+	//puts("coalesceDate");
 	if (p->yeari > 0) {
 		if (p->yearlen == 0) {
 			p->yearlen = end - p->yeari;
@@ -208,6 +215,7 @@ static void coalesceDate(struct parser* p, int end) {
 	}
 }
 static void coalesceTime(struct parser* p, int end) {
+	//puts("coalesceTime");
 	// 03:04:05
 	// 15:04:05
 	// 3:04:05
@@ -249,13 +257,15 @@ static void coalesceTime(struct parser* p, int end) {
 	}
 }
 static void setFullMonth(struct parser* p, char* month){
+	puts("setFullMonth");
 	if (p->moi == 0){
-		char b[50];
+		char b[BUFSIZE];
 		sprintf(b, "%s:%s", "January", p->format+strlen(month));
 		strcpy(p->format, b);
 	}
 }
 static void trimExtra(struct parser* p){
+	//puts("trimExtra");
 	if (p->extra > 0 && strlen(p->format) > p->extra) {
 		p->format[p->extra] = 0;
 		p->datestr[p->extra] = 0;
@@ -268,7 +278,7 @@ static int isInt(const char* s){
 }
 static int parse(struct parser* p, struct timeval *tv);
 static int parseTime(const char* datestr, struct parser* p);
-int dateParse(const char* datestr, struct timeval* tv){
+int dateparse(const char* datestr, struct timeval* tv){
 	struct parser p;
 	if (parseTime(datestr, &p))
 		return -1;
@@ -276,12 +286,13 @@ int dateParse(const char* datestr, struct timeval* tv){
 }
 
 static int parseTime(const char* datestr, struct parser* p){
+	//puts("parseTime start");
 
 	 newParser(datestr, p);
 	int len = strlen(datestr), i=0, length;
 	if (len > 59) return -1;
 	char r;
-	char buf[60], month[10];
+	char buf[BUFSIZE], month[BUFSIZE];
 
 	for (i=0; i<len; ++i){
 		r = datestr[i];
@@ -653,7 +664,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					// Check to see if the alpha is name of month?  or Day?
 					lowerMonth(month, datestr);
 					if (isMonthFull(month)) {
-						p->fullMonth = month;
+						strncpy(p->fullMonth, month, MONTHBUF);
 						// len(" 31, 2018")   = 9
 						if (strlen(datestr+i) < 10) {
 							// April 8, 2009
@@ -887,14 +898,14 @@ static int parseTime(const char* datestr, struct parser* p){
 			//        x
 			// April 8th, 2009
 			// April 8th 2009
-			memset(buf,0,50);
+			memset(buf,0,BUFSIZE);
 			switch (r) {
 			case 't':
 			case 'T':
 				if (nextIs(p, i, 'h') || nextIs(p, i, 'H')) {
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
-						strncpy(buf+i, datestr+i+2, 50-i);
+						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
 						return parseTime(buf, p);
 					}
 				}
@@ -904,7 +915,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				if (nextIs(p, i, 'd') || nextIs(p, i, 'D')) {
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
-						strncpy(buf+i, datestr+i+2, 50-i);
+						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
 						return parseTime(buf, p);
 					}
 				}
@@ -914,7 +925,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				if (nextIs(p, i, 't') || nextIs(p, i, 'T')) {
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
-						strncpy(buf+i, datestr+i+2, 50-i);
+						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
 						return parseTime(buf, p);
 					}
 				}
@@ -924,7 +935,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				if (nextIs(p, i, 'd') || nextIs(p, i, 'D')) {
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
-						strncpy(buf+i, datestr+i+2, 50-i);
+						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
 						return parseTime(buf, p);
 					}
 				}
@@ -1863,6 +1874,8 @@ static int parseTime(const char* datestr, struct parser* p){
 }
 
 static int parse(struct parser* p, struct timeval *tv){
+	printf("format: %s, date: %s\n", p->format, p->datestr);
+	return 0;
 	if (p->t.tv_sec || p->t.tv_usec){
 		tv->tv_sec = p->t.tv_sec;
 		tv->tv_usec = p->t.tv_usec;
