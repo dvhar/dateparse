@@ -140,37 +140,35 @@ static void newParser(const char* s, struct parser* p){
 	p->datestr = p->datestrbuf;
 	//TODO: only strcpy if using trimExtra
 	strncpy(p->datestr, s, BUFSIZE);
-	strncpy(p->format, s, BUFSIZE);
+	memset(p->format, 0, BUFSIZE);
 }
 
 static void setParser(struct parser* p, int start, char* val){
 	//printf("setparser %s\n", val);
-	if (start < 0) return;
-	int vlen = strlen(val), i;
-	if (strlen(p->format) < start + vlen) return;
-	for (i=0; i<vlen; ++i){
-		p->format[start+i] = val[i];
-	}
+	strcat(p->format, val);
 }
-static void setYear(struct parser* p){
+static void setChar(struct parser* p, char c){
+	p->format[strlen(p->format)] = c;
+}
+static void setYear(struct parser* p, char* end){
 	if (p->yearlen == 2) {
-		setParser(p, p->yeari, "%y");
+		strcat(p->format, "%y");
+		strcat(p->format, end);
 	} else if (p->yearlen == 4) {
-		setParser(p, p->yeari, "%Y");
+		strcat(p->format, "%Y");
+		strcat(p->format, end);
 	}
 }
-static void setMonth(struct parser* p){
-	if (p->molen == 2) {
-		setParser(p, p->moi, "%m"); //see how to format 1 vs 2 digits
-	} else if (p->molen == 1) {
-		setParser(p, p->moi, "%m");
+static void setMonth(struct parser* p, char* end){
+	if (p->molen == 2 || p->molen == 1) {
+		strcat(p->format, "%m");
+		strcat(p->format, end);
 	}
 }
-static void setDay(struct parser* p){
-	if (p->daylen == 2) {
-		setParser(p, p->dayi, "%d"); //see how to format 1 vs 2 digits
-	} else if (p->daylen == 1) {
-		setParser(p, p->dayi, "%d");
+static void setDay(struct parser* p, char* end){
+	if (p->daylen == 2 || p->daylen == 1) {
+		strcat(p->format, "%d");
+		strcat(p->format, end);
 	}
 
 }
@@ -204,15 +202,15 @@ static void coalesceDate(struct parser* p, int end) {
 		if (p->yearlen == 0) {
 			p->yearlen = end - p->yeari;
 		}
-		setYear(p);
+		setYear(p,"");
 	}
 	if (p->moi > 0 && p->molen == 0) {
 		p->molen = end - p->moi;
-		setMonth(p);
+		setMonth(p,"");
 	}
 	if (p->dayi > 0 && p->daylen == 0) {
 		p->daylen = end - p->dayi;
-		setDay(p);
+		setDay(p,"");
 	}
 }
 static void coalesceTime(struct parser* p, int end) {
@@ -322,7 +320,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					p->yeari = 0;
 					p->yearlen = i;
 					p->moi = i + 1;
-					setParser(p,0, "%Y");
+					setParser(p,0, "%Y-");
 				} else {
 					p->stateDate = dateDigitDash;
 				}
@@ -335,13 +333,13 @@ static int parseTime(const char* datestr, struct parser* p){
 				if (i == 4) {
 					p->yearlen = i;
 					p->moi = i + 1;
-					setYear(p);
+					setYear(p,"/");
 				} else {
 					p->ambiguousMD = 1;
 					if (p->preferMonthFirst) {
 						if (p->molen == 0) {
 							p->molen = i;
-							setMonth(p);
+							setMonth(p,"/");
 							p->dayi = i + 1;
 						}
 					}
@@ -356,12 +354,12 @@ static int parseTime(const char* datestr, struct parser* p){
 				if (i == 4) {
 					p->yearlen = i;
 					p->moi = i + 1;
-					setYear(p);
+					setYear(p,".");
 				} else {
 					p->ambiguousMD = 1;
 					p->moi = 0;
 					p->molen = i;
-					setMonth(p);
+					setMonth(p,".");
 					p->dayi = i + 1;
 				}
 				break;
@@ -399,7 +397,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				p->molen = i - p->moi;
 				p->dayi = i + 1;
 				p->stateDate = dateYearDashDash;
-				setMonth(p);
+				setMonth(p,"-");
 				break;
 			default:
 				if (isalpha(r)) {
@@ -418,13 +416,13 @@ static int parseTime(const char* datestr, struct parser* p){
 				p->daylen = i - p->dayi;
 				p->stateDate = dateYearDashDashWs;
 				p->stateTime = timeStart;
-				setDay(p);
+				setDay(p," ");
 				goto endIterRunes;
 			case 'T':
 				p->daylen = i - p->dayi;
 				p->stateDate = dateYearDashDashT;
 				p->stateTime = timeStart;
-				setDay(p);
+				setDay(p,"T");
 				goto endIterRunes;
 			}
 			break;
@@ -433,7 +431,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			switch (r) {
 			case '-':
 				p->molen = i - p->moi;
-				setParser(p,p->moi, "%b"); //was Jan
+				setParser(p,p->moi, "%b-"); //was Jan
 				p->dayi = i + 1;
 			}
 			break;
@@ -454,7 +452,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			switch (r) {
 			case '-':
 				p->molen = i - p->moi;
-				setParser(p, p->moi, "%b"); //was Jan
+				setParser(p, p->moi, "%b-"); //was Jan
 				p->yeari = i + 1;
 				p->stateDate = dateDigitDashAlphaDash;
 			}
@@ -471,11 +469,11 @@ static int parseTime(const char* datestr, struct parser* p){
 				length = i - (p->moi + p->molen + 1);
 				if (length == 4) {
 					p->yearlen = 4;
-					setParser(p, p->yeari, "%Y");
+					setParser(p, p->yeari, "%Y ");
 					// We now also know that part1 was the day
 					p->dayi = 0;
 					p->daylen = p->part1Len;
-					setDay(p);
+					setDay(p," ");
 				} else if (length == 2) {
 					// We have no idea if this is
 					// yy-mon-dd   OR  dd-mon-yy
@@ -483,11 +481,11 @@ static int parseTime(const char* datestr, struct parser* p){
 					// We are going to ASSUME (bad, bad) that it is dd-mon-yy  which is a horible assumption
 					p->ambiguousMD = 1;
 					p->yearlen = 2;
-					setParser(p, p->yeari, "%y");
+					setParser(p, p->yeari, "%y ");
 					// We now also know that part1 was the day
 					p->dayi = 0;
 					p->daylen = p->part1Len;
-					setDay(p);
+					setDay(p," ");
 				}
 				p->stateTime = timeStart;
 				goto endIterRunes;
@@ -510,10 +508,10 @@ static int parseTime(const char* datestr, struct parser* p){
 				p->stateTime = timeStart;
 				if (p->yearlen == 0) {
 					p->yearlen = i - p->yeari;
-					setYear(p);
+					setYear(p," ");
 				} else if (p->daylen == 0) {
 					p->daylen = i - p->dayi;
-					setDay(p);
+					setDay(p," ");
 				}
 				goto endIterRunes;
 			case '/':
@@ -521,13 +519,13 @@ static int parseTime(const char* datestr, struct parser* p){
 					// 2014/07/10 06:55:38.156283
 					if (p->molen == 0) {
 						p->molen = i - p->moi;
-						setMonth(p);
+						setMonth(p,"/");
 						p->dayi = i + 1;
 					}
 				} else if (p->preferMonthFirst) {
 					if (p->daylen == 0) {
 						p->daylen = i - p->dayi;
-						setDay(p);
+						setDay(p,"/");
 						p->yeari = i + 1;
 					}
 				}
@@ -549,9 +547,9 @@ static int parseTime(const char* datestr, struct parser* p){
 				//p->yearlen = 4
 				p->dayi = 0;
 				p->daylen = p->part1Len;
-				setDay(p);
+				setDay(p," ");
 				p->stateTime = timeStart;
-				if (i > p->daylen+strlen(" %b")) { //  November etc //was Sep
+				if (i > p->daylen+strlen("%b ")) { //  November etc //was Sep
 					// If len greather than space + 3 it must be full month
 					p->stateDate = dateDigitWsMolong;
 				} else {
@@ -561,7 +559,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					// mo := strings.ToLower(datestr[p->daylen+1 : i])
 					p->moi = p->daylen + 1;
 					p->molen = i - p->moi;
-					setParser(p, p->moi, "%b"); //was Jan
+					setParser(p, p->moi, "%b "); //was Jan
 					p->stateDate = dateDigitWsMoYear;
 				}
 				break;
@@ -577,12 +575,12 @@ static int parseTime(const char* datestr, struct parser* p){
 			switch (r) {
 			case ',':
 				p->yearlen = i - p->yeari;
-				setYear(p);
+				setYear(p,",");
 				i++;
 				goto endIterRunes;
 			case ' ':
 				p->yearlen = i - p->yeari;
-				setYear(p);
+				setYear(p," ");
 				goto endIterRunes;
 			}
 			break;
@@ -613,14 +611,14 @@ static int parseTime(const char* datestr, struct parser* p){
 					// 3.31.2014
 					p->daylen = i - p->dayi;
 					p->yeari = i + 1;
-					setDay(p);
+					setDay(p,".");
 					p->stateDate = dateDigitDotDot;
 				} else {
 					// 2018.09.30
 					//p->molen = 2
 					p->molen = i - p->moi;
 					p->dayi = i + 1;
-					setMonth(p);
+					setMonth(p,".");
 					p->stateDate = dateDigitDotDot;
 				}
 			}
@@ -693,7 +691,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				// p->molen = i
 				if (i == 3) {
 					p->stateDate = dateWeekdayAbbrevComma;
-					setParser(p, 0, "%a"); //was Mon
+					setParser(p, 0, "%a, "); //was Mon
 				} else {
 					p->stateDate = dateWeekdayComma;
 					p->skip = i + 2;
@@ -709,7 +707,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				p->stateDate = dateAlphaPeriodWsDigit;
 				if (i == 3) {
 					p->molen = i;
-					setParser(p, 0, "%b"); //was Jan
+					setParser(p, 0, "%b. "); //was Jan
 				} else if (i == 4) {
 					// gross
 					//datestr = datestr[0:i-1] + datestr[i:];
@@ -735,11 +733,11 @@ static int parseTime(const char* datestr, struct parser* p){
 			//    oct 1, 1970
 			//    oct 7, '70
 			if (isalpha(r)) {
-				setParser(p, 0, "%a"); //was Mon
+				setParser(p, 0, "%a "); //was Mon
 				p->stateDate = dateAlphaWsAlpha;
-				setParser(p, i, "%b"); //was Jan
+				setParser(p, i, "%b "); //was Jan
 			} else if (isdigit(r)) {
-				setParser(p, 0, "%b"); //was Jan
+				setParser(p, 0, "%b "); //was Jan
 				p->stateDate = dateAlphaWsDigit;
 				p->dayi = i;
 			}
@@ -753,11 +751,11 @@ static int parseTime(const char* datestr, struct parser* p){
 			// oct. 7, 1970
 			if (r == ',') {
 				p->daylen = i - p->dayi;
-				setDay(p);
+				setDay(p,",");
 				p->stateDate = dateAlphaWsDigitMore;
 			} else if (r == ' ') {
 				p->daylen = i - p->dayi;
-				setDay(p);
+				setDay(p," ");
 				p->yeari = i + 1;
 				p->stateDate = dateAlphaWsDigitMoreWs;
 			} else if (isalpha(r)) {
@@ -796,7 +794,11 @@ static int parseTime(const char* datestr, struct parser* p){
 				// May 8, 2009, 5:57:51 PM
 				p->stateDate = dateAlphaWsDigitMoreWsYear;
 				p->yearlen = i - p->yeari;
-				setYear(p);
+				switch (r) {
+				case ' ': setYear(p," "); break;
+				case ',': setYear(p,","); break;
+				break;
+				}
 				p->stateTime = timeStart;
 				goto endIterRunes;
 			}
@@ -811,7 +813,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			if (r == ' ') {
 				if (p->dayi > 0) {
 					p->daylen = i - p->dayi;
-					setDay(p);
+					setDay(p," ");
 					p->yeari = i + 1;
 					p->stateDate = dateAlphaWsAlphaYearmaybe;
 					p->stateTime = timeStart;
@@ -835,7 +837,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			} else if (r == ' ') {
 				// must be year format, not 15:04
 				p->yearlen = i - p->yeari;
-				setYear(p);
+				setYear(p," ");
 				goto endIterRunes;
 			}
 			break;
@@ -852,7 +854,8 @@ static int parseTime(const char* datestr, struct parser* p){
 				// June 8 2009
 				if (p->daylen == 0) {
 					p->daylen = i - p->dayi;
-					setDay(p);
+					setDay(p,"");
+					p->format[strlen(p->format)] = r;
 				}
 				break;
 			case 's':
@@ -883,13 +886,13 @@ static int parseTime(const char* datestr, struct parser* p){
 			switch (r) {
 			case ',':
 				p->yearlen = i - p->yeari;
-				setYear(p);
+				setYear(p,",");
 				p->stateTime = timeStart;
 				i++;
 				goto endIterRunes;
 			case ' ':
 				p->yearlen = i - p->yeari;
-				setYear(p);
+				setYear(p," ");
 				p->stateTime = timeStart;
 				goto endIterRunes;
 			}
@@ -954,7 +957,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				// January 02, 2006, 15:04:05
 				if (nextIs(p, i, ' ')) {
 					p->daylen = i - p->dayi;
-					setDay(p);
+					setDay(p,", ");
 					p->yeari = i + 2;
 					p->stateDate = dateAlphaWsMonthMore;
 					i++;
@@ -963,7 +966,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				//           x
 				// January 02 2006, 15:04:05
 				p->daylen = i - p->dayi;
-				setDay(p);
+				setDay(p,", ");
 				p->yeari = i + 1;
 				p->stateDate = dateAlphaWsMonthMore;
 			} else if (isdigit(r)) {
@@ -974,7 +977,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				//          X
 				// January 2nd, 2006, 15:04:05
 				p->daylen = i - p->dayi;
-				setDay(p);
+				setDay(p,", ");
 				p->stateDate = dateAlphaWsMonthSuffix;
 				i--;
 			}
@@ -1005,11 +1008,14 @@ static int parseTime(const char* datestr, struct parser* p){
 				if (p->moi == 0) {
 					p->moi = i + 1;
 					p->daylen = i - p->dayi;
-					setDay(p);
+					switch (r) {
+					case '-': setDay(p,"-"); break;
+					case ' ': setDay(p," "); break;
+					}
 				} else if (p->yeari == 0) {
 					p->yeari = i + 1;
 					p->molen = i - p->moi;
-					setParser(p, p->moi, "%b"); //was Jan
+					setParser(p, p->moi, "%b "); //was Jan
 				} else {
 					p->stateTime = timeStart;
 					goto endIterRunes;
@@ -1030,7 +1036,8 @@ static int parseTime(const char* datestr, struct parser* p){
 					p->dayi = i + 1;
 				} else if (p->moi == 0) {
 					p->daylen = i - p->dayi;
-					setDay(p);
+					setDay(p,"");
+					setChar(p,r);
 					p->moi = i + 1;
 				} else if (p->yeari == 0) {
 					p->molen = i - p->moi;
@@ -1038,7 +1045,8 @@ static int parseTime(const char* datestr, struct parser* p){
 					p->yeari = i + 1;
 				} else {
 					p->yearlen = i - p->yeari;
-					setYear(p);
+					setYear(p,"");
+					setChar(p,r);
 					p->stateTime = timeStart;
 					goto endIterRunes;
 				}
@@ -1311,7 +1319,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				if (isdigit(r)) {
 					p->yearlen = i - p->yeari + 1;
 					if (p->yearlen == 4) {
-						setYear(p);
+						setYear(p,"");
 					}
 				}
 				break;
@@ -1388,7 +1396,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					if (isdigit(r)){
 						p->yearlen = i - p->yeari + 1;
 						if (p->yearlen == 4) {
-							setYear(p);
+							setYear(p,"");
 						}
 					} else if (isalpha(r)){
 						if (p->tzi == 0) {
@@ -1603,11 +1611,11 @@ static int parseTime(const char* datestr, struct parser* p){
 		switch (p->stateTime) {
 		case timeWsAlphaWs:
 			p->yearlen = i - p->yeari;
-			setYear(p);
+			setYear(p,"");
 			break;
 		case timeWsYear:
 			p->yearlen = i - p->yeari;
-			setYear(p);
+			setYear(p,"");
 			break;
 		case timeWsAlphaZoneOffsetWsExtra:
 			trimExtra(p);
@@ -1745,7 +1753,7 @@ static int parseTime(const char* datestr, struct parser* p){
 		// 2013-Feb-03
 		// 2013-Feb-3
 		p->daylen = i - p->dayi;
-		setDay(p);
+		setDay(p,"");
 		return 0;
 
 	case dateYearDashDashWs:
@@ -1766,7 +1774,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			// We now also know that part1 was the day
 			p->dayi = 0;
 			p->daylen = p->part1Len;
-			setDay(p);
+			setDay(p,"");
 		} else if (length == 2) {
 			// We have no idea if this is
 			// yy-mon-dd   OR  dd-mon-yy
@@ -1778,14 +1786,14 @@ static int parseTime(const char* datestr, struct parser* p){
 			// We now also know that part1 was the day
 			p->dayi = 0;
 			p->daylen = p->part1Len;
-			setDay(p);
+			setDay(p,"");
 		}
 		return 0;
 
 	case dateDigitDot:
 		// 2014.05
 		p->molen = i - p->moi;
-		setMonth(p);
+		setMonth(p,"");
 		return 0;
 
 	case dateDigitDotDot:
@@ -1817,7 +1825,7 @@ static int parseTime(const char* datestr, struct parser* p){
 
 	case dateAlphaWsMonth:
 		p->yearlen = i - p->yeari;
-		setYear(p);
+		setYear(p,"");
 		return 0;
 
 	case dateAlphaWsMonthMore:
@@ -1826,7 +1834,7 @@ static int parseTime(const char* datestr, struct parser* p){
 	case dateAlphaWsDigitMoreWs:
 		// oct 1, 1970
 		p->yearlen = i - p->yeari;
-		setYear(p);
+		setYear(p,"");
 		return 0;
 
 	case dateAlphaWsDigitMoreWsYear:
@@ -1875,7 +1883,7 @@ static int parseTime(const char* datestr, struct parser* p){
 }
 
 static int parse(struct parser* p, struct timeval *tv){
-	printf("format: %s, date: %s\n", p->format, p->datestr);
+	printf("%-50s%-50s\n", p->format, p->datestr);
 	return 0;
 	if (p->t.tv_sec || p->t.tv_usec){
 		tv->tv_sec = p->t.tv_sec;

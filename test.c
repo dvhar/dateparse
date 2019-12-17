@@ -106,9 +106,6 @@ int main(){
 	struct timeval tv;
 
 	for (i=0; i<len; ++i){
-		if (dateparse(dates[i], &tv))
-			printf("error %s\n", dates[i]);
-		else
-			printf("success %s\n", dates[i]);
+		dateparse(dates[i], &tv);
 	}
 }
