@@ -111,12 +111,15 @@ int main(){
 	struct tm* t;
 	char b[100];
 	char f[100];
+	float win = 0;
+
 
 	for (i=0; i<len; ++i){
 		if (dateparse(dates[i], &tv, f)){
 			printf("===============================failed==========================\n%s\n", dates[i]);
 			puts(f);
 		} else {
+			win += 1;
 			printf("===============================success=========================\n%s\n", dates[i]);
 			t = localtime(&tv.tv_sec);
 			puts(f);
@@ -124,4 +127,5 @@ int main(){
 			printf("%s\n", b);
 		}
 	}
+	printf("%f percent success\n", win*100/i);
 }
