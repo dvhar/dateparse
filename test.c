@@ -1,4 +1,6 @@
 #include "dateparse.h"
+#include <sys/time.h>
+#include <time.h>
 int main(){
 		
 	char* dates[] = {
@@ -104,8 +106,18 @@ int main(){
 	int len = sizeof(dates)/sizeof(char*);
 	int i;
 	struct timeval tv;
+	struct tm* t;
+	char b[100];
 
 	for (i=0; i<len; ++i){
-		dateparse(dates[i], &tv);
+		if (dateparse(dates[i], &tv)){
+			printf("===============================failed==========================\n%s\n", dates[i]);
+		} else {
+			printf("===============================success=========================\n%s\n", dates[i]);
+			memset(b,0,100);
+			t = localtime(&tv.tv_sec);
+			strftime(b, 99, "%Y-%m-%d %H:%M:%S", &t);
+			printf("%s\n", b);
+		}
 	}
 }
