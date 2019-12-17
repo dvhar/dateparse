@@ -1,6 +1,8 @@
+#define _XOPEN_SOURCE
 #include "dateparse.h"
 #include <sys/time.h>
 #include <time.h>
+#include <stdio.h>
 int main(){
 		
 	char* dates[] = {
@@ -108,15 +110,17 @@ int main(){
 	struct timeval tv;
 	struct tm* t;
 	char b[100];
+	char f[100];
 
 	for (i=0; i<len; ++i){
-		if (dateparse(dates[i], &tv)){
+		if (dateparse(dates[i], &tv, f)){
 			printf("===============================failed==========================\n%s\n", dates[i]);
+			puts(f);
 		} else {
 			printf("===============================success=========================\n%s\n", dates[i]);
-			memset(b,0,100);
 			t = localtime(&tv.tv_sec);
-			strftime(b, 99, "%Y-%m-%d %H:%M:%S", &t);
+			puts(f);
+			strftime(b, 99, "%Y-%m-%d %H:%M:%S", t);
 			printf("%s\n", b);
 		}
 	}

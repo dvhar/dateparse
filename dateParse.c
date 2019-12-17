@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE
 #include <sys/time.h>
 #include <string.h>
 #include <time.h>
@@ -274,10 +275,13 @@ static int isInt(const char* s){
 }
 static int parse(struct parser* p, struct timeval *tv);
 static int parseTime(const char* datestr, struct parser* p);
-int dateparse(const char* datestr, struct timeval* tv){
+int dateparse(const char* datestr, struct timeval* tv, char* f){
 	struct parser p;
-	if (parseTime(datestr, &p))
+	if (parseTime(datestr, &p)){
+		strcpy(f, p.format);
 		return -1;
+	}
+	strcpy(f, p.format);
 	return parse(&p, tv);
 }
 
