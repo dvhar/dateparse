@@ -129,6 +129,9 @@ struct parser {
 	struct timeval t;
 };
 
+static void debug(struct parser* p, char* s){
+	printf("%s: '%s'\n", s, p->format);
+}
 static void newParser(const char* s, struct parser* p){
 	//puts("newparser");
 	memset(p, 0, sizeof(struct parser));
@@ -195,6 +198,7 @@ static int nextIs(struct parser* p, int i, char c){
 	return 0;
 }
 static void coalesceDate(struct parser* p, int end) {
+			debug(p, "coalesceDate");
 	//puts("coalesceDate");
 	if (p->yeari > 0) {
 		if (p->yearlen == 0) {
@@ -210,6 +214,7 @@ static void coalesceDate(struct parser* p, int end) {
 		p->daylen = end - p->dayi;
 		setDay(p,"");
 	}
+			debug(p, "end coalesceDate");
 }
 static void coalesceTime(struct parser* p, int end) {
 	//puts("coalesceTime");
@@ -284,6 +289,7 @@ int dateparse(const char* datestr, struct timeval* tv, char* f){
 	strcpy(f, p.format);
 	return parse(&p, tv);
 }
+
 
 static int parseTime(const char* datestr, struct parser* p){
 	//puts("parseTime start");
@@ -387,6 +393,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateYearDash:
+			debug(p, "dateYearDash");
 			// dateYearDashDashT
 			//  2006-01-02T15:04:05Z07:00
 			// dateYearDashDashWs
@@ -408,6 +415,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateYearDashDash:
+			debug(p, "dateYearDashDash");
 			// dateYearDashDashT
 			//  2006-01-02T15:04:05Z07:00
 			// dateYearDashDashWs
@@ -428,6 +436,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			}
 			break;
 		case dateYearDashAlphaDash:
+			debug(p, "dateYearDashAlphaDash");
 			// 2013-Feb-03
 			switch (r) {
 			case '-':
@@ -437,6 +446,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			}
 			break;
 		case dateDigitDash:
+			debug(p, "dateDigitDash");
 			// 13-Feb-03
 			// 29-Jun-2016
 			if (isalpha(r)) {
@@ -447,6 +457,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			}
 			break;
 		case dateDigitDashAlpha:
+			debug(p, "dateDigitDashAlpha");
 			// 13-Feb-03
 			// 28-Feb-03
 			// 29-Jun-2016
@@ -460,6 +471,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateDigitDashAlphaDash:
+			debug(p, "dateDigitDashAlphaDash");
 			// 13-Feb-03   ambiguous
 			// 28-Feb-03   ambiguous
 			// 29-Jun-2016
@@ -494,6 +506,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateDigitSlash:
+			debug(p, "dateDigitSlash");
 			// 2014/07/10 06:55:38.156283
 			// 03/19/2012 10:11:59
 			// 04/2/2014 03:00:37
@@ -534,6 +547,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateDigitWs:
+			debug(p, "dateDigitWs");
 			// 18 January 2018
 			// 8 January 2018
 			// 8 jan 2018
@@ -568,6 +582,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateDigitWsMoYear:
+			debug(p, "dateDigitWsMoYear");
 			// 8 jan 2018
 			// 02 Jan 2018 23:59
 			// 02 Jan 2018 23:59:34
@@ -586,11 +601,13 @@ static int parseTime(const char* datestr, struct parser* p){
 			}
 			break;
 		case dateDigitWsMolong:
+			debug(p, "dateDigitWsMoLong");
 			break;
 			// 18 January 2018
 			// 8 January 2018
 
 		case dateDigitDot:
+			debug(p, "dateDigitDot");
 			// This is the 2nd period
 			// 3.31.2014
 			// 08.21.71
@@ -613,10 +630,12 @@ static int parseTime(const char* datestr, struct parser* p){
 				}
 			}
 		case dateDigitDotDot:
+			debug(p, "dateDigitDotDot");
 			// iterate all the way through
 			break;
 
 		case dateAlpha:
+			debug(p, "dateAlpha");
 			// dateAlphaWS
 			//  Mon Jan _2 15:04:05 2006
 			//  Mon Jan _2 15:04:05 MST 2006
@@ -711,6 +730,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateAlphaWs:
+			debug(p, "dateAlphaWs");
 			// dateAlphaWsAlpha
 			//   Mon Jan _2 15:04:05 2006
 			//   Mon Jan _2 15:04:05 MST 2006
@@ -734,6 +754,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateAlphaWsDigit:
+			debug(p, "dateAlphaWsDigit");
 			// May 8, 2009 5:57:51 PM
 			// May 8 2009 5:57:51 PM
 			// oct 1, 1970
@@ -754,6 +775,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			}
 			break;
 		case dateAlphaWsDigitMore:
+			debug(p, "dateAlphaWsDigitMore");
 			//       x
 			// May 8, 2009 5:57:51 PM
 			// May 05, 2005, 05:05:05
@@ -767,6 +789,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateAlphaWsDigitMoreWs:
+			debug(p, "dateAlphaWsDigitMoreWs");
 			//            x
 			// May 8, 2009 5:57:51 PM
 			// May 05, 2005, 05:05:05
@@ -795,6 +818,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateAlphaWsAlpha:
+			debug(p, "dateAlphaWsAlpha");
 			// Mon Jan _2 15:04:05 2006
 			// Mon Jan 02 15:04:05 -0700 2006
 			// Mon Jan _2 15:04:05 MST 2006
@@ -816,6 +840,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateAlphaWsAlphaYearmaybe:
+			debug(p, "dateAlphaWsAlphaYearmaybe");
 			//            x
 			// Mon Jan _2 15:04:05 2006
 			// Fri Jul 03 2015 18:04:07 GMT+0100 (GMT Daylight Time)
@@ -833,6 +858,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateAlphaWsMonth:
+			debug(p, "dateAlphaWsMonth");
 			// April 8, 2009
 			// April 8 2009
 			switch (r) {
@@ -868,6 +894,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateAlphaWsMonthMore:
+			debug(p, "dateAlphaWsMonthMore");
 			//                  X
 			// January 02, 2006, 15:04:05
 			// January 02 2006, 15:04:05
@@ -889,6 +916,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateAlphaWsMonthSuffix:
+			debug(p, "dateAlphaWsMonthSuffix");
 			//        x
 			// April 8th, 2009
 			// April 8th 2009
@@ -937,6 +965,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateAlphaWsMore:
+			debug(p, "dateAlphaWsMore");
 			// January 02, 2006, 15:04:05
 			// January 02 2006, 15:04:05
 			// January 2nd, 2006, 15:04:05
@@ -974,6 +1003,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case dateAlphaPeriodWsDigit:
+			debug(p, "dateAlphaPeriodWsDigit");
 			//    oct. 7, '70
 			if (r == ' '){
 				// continue
@@ -985,6 +1015,8 @@ static int parseTime(const char* datestr, struct parser* p){
 			}
 			break;
 		case dateWeekdayComma:
+			debug(p, "dateWeekdayComma");
+			//    oct. 7, '70
 			// Monday, 02 Jan 2006 15:04:05 MST
 			// Monday, 02 Jan 2006 15:04:05 -0700
 			// Monday, 02 Jan 2006 15:04:05 +0100
@@ -1013,6 +1045,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			}
 			break;
 		case dateWeekdayAbbrevComma:
+			debug(p, "dateWeekdayAbbrevComma");
 			// Mon, 02 Jan 2006 15:04:05 MST
 			// Mon, 02 Jan 2006 15:04:05 -0700
 			// Thu, 13 Jul 2017 08:58:40 +0100
