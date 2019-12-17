@@ -1,4 +1,5 @@
 #include <sys/time.h>
+#include <time.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
