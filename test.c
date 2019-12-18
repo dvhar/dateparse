@@ -115,6 +115,7 @@ int main(){
 
 
 	for (i=0; i<len; ++i){
+<<<<<<< HEAD
 		if (dateparse(dates[i], &tv, f)){
 			printf("===============================failed==========================\n%s\n", dates[i]);
 			puts(f);
@@ -126,6 +127,9 @@ int main(){
 			strftime(b, 99, "%Y-%m-%d %H:%M:%S", t);
 			printf("%s\n", b);
 		}
+=======
+		dateparse(dates[i], &tv);
+>>>>>>> retry1
 	}
 	printf("%f percent success\n", win*100/i);
 }
