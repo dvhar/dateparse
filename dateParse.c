@@ -110,22 +110,33 @@ struct parser {
 	int part1Len;
 	int yeari;
 	int yearlen;
+	char yearbuf[6];
 	int moi;
 	int molen;
+	char mobuf[12];
 	int dayi;
 	int daylen;
+	char daybuf[12];
+	char wdaybuf[12];
 	int houri;
 	int hourlen;
+	char hourbuf[6];
+	char ampmbuf[3];
 	int mini;
 	int minlen;
+	char minbuf[6];
 	int seci;
 	int seclen;
+	char secbuf[6];
 	int msi;
 	int mslen;
+	char msbuf[12];
 	int offseti;
 	int offsetlen;
+	char offsetbuf[12];
 	int tzi;
 	int tzlen;
+	char tzbuf[30];
 	struct timeval t;
 };
 
@@ -153,25 +164,75 @@ static void setParser(struct parser* p, int start, char* val){
 }
 static void setYear(struct parser* p){
 	if (p->yearlen == 2) {
-		setParser(p, p->yeari, "06");
+		strncpy(p->yearbuf, p->datestr+p->yeari, 2);
+		p->yearbuf[p->yearlen] = 0;
 	} else if (p->yearlen == 4) {
-		setParser(p, p->yeari, "2006");
+		strncpy(p->yearbuf, p->datestr+p->yeari, 4);
+		p->yearbuf[p->yearlen] = 0;
 	}
 }
 static void setMonth(struct parser* p){
 	if (p->molen == 2) {
-		setParser(p, p->moi, "01");
+		strncpy(p->mobuf, p->datestr+p->moi, 2);
+		p->mobuf[p->molen] = 0;
 	} else if (p->molen == 1) {
-		setParser(p, p->moi, "1");
+		strncpy(p->mobuf, p->datestr+p->moi, 1);
+		p->mobuf[p->molen] = 0;
 	}
 }
 static void setDay(struct parser* p){
 	if (p->daylen == 2) {
-		setParser(p, p->dayi, "02");
+		strncpy(p->daybuf, p->datestr+p->dayi, 2);
+		p->daybuf[p->daylen] = 0;
 	} else if (p->daylen == 1) {
-		setParser(p, p->dayi, "2");
+		strncpy(p->daybuf, p->datestr+p->dayi, 1);
+		p->daybuf[p->daylen] = 0;
 	}
-
+}
+static int setmo(struct parser* p, int i, int len){
+	if (len == 0)
+		for (; isalpha(p->datestr[i+len]); len++)
+			p->mobuf[len] = p->datestr[i+len];
+	else
+		strncpy(p->mobuf, p->datestr+i, len);
+	p->mobuf[len] = 0;
+	return len;
+}
+static void setmn(struct parser* p, int i, int len){
+	strncpy(p->minbuf, p->datestr+i, len);
+	p->minbuf[len] = 0;
+}
+static void sets(struct parser* p, int i, int len){
+	strncpy(p->secbuf, p->datestr+i, len);
+	p->secbuf[len] = 0;
+}
+static void setd(struct parser* p, int i, int len){
+	strncpy(p->daybuf, p->datestr+i, len);
+	p->daybuf[len] = 0;
+}
+static void setwd(struct parser* p, int i, int len){
+	strncpy(p->wdaybuf, p->datestr+i, len);
+	p->wdaybuf[len] = 0;
+}
+static void sety(struct parser* p, int i, int len){
+	strncpy(p->yearbuf, p->datestr+i, len);
+	p->yearbuf[len] = 0;
+}
+static void setap(struct parser* p, int i, int len){
+	strncpy(p->ampmbuf, p->datestr+i, len);
+	p->ampmbuf[len] = 0;
+}
+static void setz(struct parser* p, int i, int len){
+	strncpy(p->tzbuf, p->datestr+i, len);
+	p->tzbuf[len] = 0;
+}
+static void seto(struct parser* p, int i, int len){
+	strncpy(p->offsetbuf, p->datestr+i, len);
+	p->offsetbuf[len] = 0;
+}
+static void seth(struct parser* p, int i, int len){
+	strncpy(p->hourbuf, p->datestr+i, len);
+	p->hourbuf[len] = 0;
 }
 //copy 9 lowercase chars to buffer for month comparison
 static void lowerMonth(char* d, const char* s){
@@ -183,7 +244,6 @@ static void lowerMonth(char* d, const char* s){
 	d[10] = 0;
 }
 static int isMonthFull(char* s){
-	printf("isfullmonth %s\n", s);
 	int i;
 	for (i=0; i<12; ++i){
 		if (!strcmp(s, months[i]))
@@ -223,9 +283,9 @@ static void coalesceTime(struct parser* p, int end) {
 	// 15:04:05.00
 	if (p->houri > 0) {
 		if (p->hourlen == 2) {
-			setParser(p, p->houri, "15");
+			seth(p, p->houri, 2);
 		} else if (p->hourlen == 1) {
-			setParser(p, p->houri, "3");
+			seth(p, p->houri, 1);
 		}
 	}
 	if (p->mini > 0) {
@@ -233,9 +293,9 @@ static void coalesceTime(struct parser* p, int end) {
 			p->minlen = end - p->mini;
 		}
 		if (p->minlen == 2) {
-			setParser(p, p->mini, "04");
+			setmn(p, p->mini, 2);
 		} else {
-			setParser(p, p->mini, "4");
+			setmn(p, p->mini, 1);
 		}
 	}
 	if (p->seci > 0) {
@@ -243,9 +303,9 @@ static void coalesceTime(struct parser* p, int end) {
 			p->seclen = end - p->seci;
 		}
 		if (p->seclen == 2) {
-			setParser(p, p->seci, "05");
+			sets(p, p->seci, 2);
 		} else {
-			setParser(p, p->seci, "5");
+			sets(p, p->seci, 1);
 		}
 	}
 
@@ -257,12 +317,8 @@ static void coalesceTime(struct parser* p, int end) {
 	}
 }
 static void setFullMonth(struct parser* p, char* month){
-	puts("setFullMonth");
-	if (p->moi == 0){
-		char b[BUFSIZE];
-		sprintf(b, "%s:%s", "January", p->format+strlen(month));
-		strcpy(p->format, b);
-	}
+	char b[BUFSIZE];
+	strcpy(p->mobuf, month);
 }
 static void trimExtra(struct parser* p){
 	//puts("trimExtra");
@@ -321,7 +377,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					p->yeari = 0;
 					p->yearlen = i;
 					p->moi = i + 1;
-					setParser(p,0, "2006");
+					sety(p,0,4);
 				} else {
 					p->stateDate = dateDigitDash;
 				}
@@ -432,7 +488,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			switch (r) {
 			case '-':
 				p->molen = i - p->moi;
-				setParser(p,p->moi, "Jan");
+				setmo(p,p->moi,3);
 				p->dayi = i + 1;
 			}
 			break;
@@ -453,7 +509,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			switch (r) {
 			case '-':
 				p->molen = i - p->moi;
-				setParser(p, p->moi, "Jan");
+				setmo(p,p->moi,3);
 				p->yeari = i + 1;
 				p->stateDate = dateDigitDashAlphaDash;
 			}
@@ -470,7 +526,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				length = i - (p->moi + p->molen + 1);
 				if (length == 4) {
 					p->yearlen = 4;
-					setParser(p, p->yeari, "2006");
+					sety(p,p->yeari,4);
 					// We now also know that part1 was the day
 					p->dayi = 0;
 					p->daylen = p->part1Len;
@@ -482,7 +538,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					// We are going to ASSUME (bad, bad) that it is dd-mon-yy  which is a horible assumption
 					p->ambiguousMD = 1;
 					p->yearlen = 2;
-					setParser(p, p->yeari, "06");
+					sety(p,p->yeari,2);
 					// We now also know that part1 was the day
 					p->dayi = 0;
 					p->daylen = p->part1Len;
@@ -560,7 +616,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					// mo := strings.ToLower(datestr[p->daylen+1 : i])
 					p->moi = p->daylen + 1;
 					p->molen = i - p->moi;
-					setParser(p, p->moi, "Jan");
+					setmo(p,p->moi,3);
 					p->stateDate = dateDigitWsMoYear;
 				}
 				break;
@@ -664,7 +720,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					// Check to see if the alpha is name of month?  or Day?
 					lowerMonth(month, datestr);
 					if (isMonthFull(month)) {
-						strncpy(p->fullMonth, month, MONTHBUF);
+						strcpy(p->mobuf, month);
 						// len(" 31, 2018")   = 9
 						if (strlen(datestr+i) < 10) {
 							// April 8, 2009
@@ -692,7 +748,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				// p->molen = i
 				if (i == 3) {
 					p->stateDate = dateWeekdayAbbrevComma;
-					setParser(p, 0, "Mon");
+					setwd(p, 0, 3);
 				} else {
 					p->stateDate = dateWeekdayComma;
 					p->skip = i + 2;
@@ -708,7 +764,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				p->stateDate = dateAlphaPeriodWsDigit;
 				if (i == 3) {
 					p->molen = i;
-					setParser(p, 0, "Jan");
+					setmo(p, 0, 3);
 				} else if (i == 4) {
 					// gross
 					//datestr = datestr[0:i-1] + datestr[i:];
@@ -734,11 +790,11 @@ static int parseTime(const char* datestr, struct parser* p){
 			//    oct 1, 1970
 			//    oct 7, '70
 			if (isalpha(r)) {
-				setParser(p, 0, "Mon");
+				setwd(p, 0, 3);
 				p->stateDate = dateAlphaWsAlpha;
-				setParser(p, i, "Jan");
+				setmo(p, i, 3);
 			} else if (isdigit(r)) {
-				setParser(p, 0, "Jan");
+				setmo(p, 0, 3);
 				p->stateDate = dateAlphaWsDigit;
 				p->dayi = i;
 			}
@@ -1008,7 +1064,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				} else if (p->yeari == 0) {
 					p->yeari = i + 1;
 					p->molen = i - p->moi;
-					setParser(p, p->moi, "Jan");
+					setmo(p, p->moi, 3);
 				} else {
 					p->stateTime = timeStart;
 					goto endIterRunes;
@@ -1033,7 +1089,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					p->moi = i + 1;
 				} else if (p->yeari == 0) {
 					p->molen = i - p->moi;
-					setParser(p, p->moi, "Jan");
+					setmo(p, p->moi, 3);
 					p->yeari = i + 1;
 				} else {
 					p->yearlen = i - p->yeari;
@@ -1149,10 +1205,10 @@ static int parseTime(const char* datestr, struct parser* p){
 					} else {
 						if (r == 'a' && nextIs(p, i, 'm')){
 							coalesceTime(p, i);
-							setParser(p, i, "am");
+							setap(p, i, 2);
 						} else if (r == 'A' && nextIs(p, i, 'M')){
 							coalesceTime(p, i);
-							setParser(p, i, "PM");
+							setap(p, i, 2);
 						}
 					}
 					break;
@@ -1162,10 +1218,10 @@ static int parseTime(const char* datestr, struct parser* p){
 					// Could be AM/PM
 					if (r == 'p' && nextIs(p, i, 'm')){
 						coalesceTime(p, i);
-						setParser(p, i, "pm");
+						setap(p, i, 2);
 					} else if (r == 'P' && nextIs(p, i, 'M')){
 						coalesceTime(p, i);
-						setParser(p, i, "PM");
+						setap(p, i, 2);
 					}
 					break;
 				case ' ':
@@ -1254,9 +1310,9 @@ static int parseTime(const char* datestr, struct parser* p){
 				case '-':
 					p->tzlen = i - p->tzi;
 					if (p->tzlen == 4) {
-						setParser(p, p->tzi, " MST");
+						setz(p, p->tzi+1, 3);
 					} else if (p->tzlen == 3) {
-						setParser(p, p->tzi, "MST");
+						setz(p, p->tzi, 3);
 					}
 					p->stateTime = timeWsAlphaZoneOffset;
 					p->offseti = i;
@@ -1265,9 +1321,9 @@ static int parseTime(const char* datestr, struct parser* p){
 					// 17:57:51 MST 2009
 					p->tzlen = i - p->tzi;
 					if (p->tzlen == 4) {
-						setParser(p, p->tzi, " MST");
+						setz(p, p->tzi+1, 3);
 					} else if (p->tzlen == 3) {
-						setParser(p, p->tzi, "MST");
+						setz(p, p->tzi, 3);
 					}
 					p->stateTime = timeWsAlphaWs;
 					p->yeari = i + 1;
@@ -1287,7 +1343,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				//     15:44:11 UTC+0100 2015
 				switch (r) {
 				case ' ':
-					setParser(p, p->offseti, "-0700");
+					seto(p, p->offseti, 5);
 					p->yeari = i + 1;
 					p->stateTime = timeWsAlphaZoneOffsetWs;
 				}
@@ -1324,11 +1380,11 @@ static int parseTime(const char* datestr, struct parser* p){
 				if (r == 'M') {
 					//return parse("2006-01-02 03:04:05 PM", datestr, loc)
 					p->stateTime = timeWsAMPM;
-					setParser(p, i-1, "PM");
+					setap(p, i-1, 2);
 					if (p->hourlen == 2) {
-						setParser(p, p->houri, "03");
+						seth(p, p->houri, 2);
 					} else if (p->hourlen == 1) {
-						setParser(p, p->houri, "3");
+						seth(p, p->houri, 1);
 					}
 				} else {
 					p->stateTime = timeWsAlpha;
@@ -1352,7 +1408,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					p->stateTime = timeWsOffsetColon;
 					break;
 				case ' ':
-					setParser(p, p->offseti, "-0700");
+					seto(p, p->offseti, 5);
 					p->yeari = i + 1;
 					p->stateTime = timeWsOffsetWs;
 					break;
@@ -1475,7 +1531,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				//     13:31:51.999 -07:00 MST
 				switch (r) {
 				case ' ':
-					setParser(p, p->offseti, "-07:00");
+					seto(p, p->offseti, 6);
 					p->stateTime = timePeriodOffsetColonWs;
 					p->tzi = i + 1;
 				}
@@ -1534,7 +1590,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					p->stateTime = timePeriodWsOffsetColon;
 					break;
 				case ' ':
-					setParser(p, p->offseti, "-0700");
+					seto(p, p->offseti, 5);
 					break;
 				case '-':
 				case '+':
@@ -1569,7 +1625,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				// 13:31:51.999 -07:00 MST
 				switch (r) {
 				case ' ':
-					setParser(p, p->offseti, "-07:00");
+					seto(p, p->offseti, 6);
 					break;
 				default:
 					if (isalpha(r)) {
@@ -1614,9 +1670,9 @@ static int parseTime(const char* datestr, struct parser* p){
 		case timeWsAlphaZoneOffset:
 			// 06:20:00 UTC-05
 			if (i-p->offseti < 4) {
-				setParser(p, p->offseti, "-07");
+				seto(p, p->offseti, 3);
 			} else {
-				setParser(p, p->offseti, "-0700");
+				seto(p, p->offseti, 5);
 			}
 			break;
 
@@ -1625,10 +1681,10 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 		case timeOffset:
 			// 19:55:00+0100
-			setParser(p, p->offseti, "-0700");
+			seto(p, p->offseti, 5);
 			break;
 		case timeWsOffset:
-			setParser(p, p->offseti, "-0700");
+			seto(p, p->offseti, 5);
 			break;
 		case timeWsOffsetWs:
 			// 17:57:51 -0700 2009
@@ -1636,32 +1692,32 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 		case timeWsOffsetColon:
 			// 17:57:51 -07:00
-			setParser(p, p->offseti, "-07:00");
+			seto(p, p->offseti, 6);
 			break;
 		case timeOffsetColon:
 			// 15:04:05+07:00
-			setParser(p, p->offseti, "-07:00");
+			seto(p, p->offseti, 6);
 			break;
 		case timePeriodOffset:
 			// 19:55:00.799+0100
-			setParser(p, p->offseti, "-0700");
+			seto(p, p->offseti, 5);
 			break;
 		case timePeriodOffsetColon:
-			setParser(p, p->offseti, "-07:00");
+			seto(p, p->offseti, 6);
 			break;
 		case timePeriodWsOffsetColonAlpha:
 			p->tzlen = i - p->tzi;
 			switch (p->tzlen) {
 			case 3:
-				setParser(p, p->tzi, "MST");
+				setz(p, p->tzi, 3);
 				break;
 			case 4:
-				setParser(p, p->tzi, "MST ");
+				setz(p, p->tzi, 3);
 				break;
 			}
 			break;
 		case timePeriodWsOffset:
-			setParser(p, p->offseti, "-0700");
+			seto(p, p->offseti, 5);
 			break;
 		}
 		coalesceTime(p, i);
@@ -1761,7 +1817,7 @@ static int parseTime(const char* datestr, struct parser* p){
 		length = strlen(datestr) - (p->moi + p->molen + 1);
 		if (length == 4) {
 			p->yearlen = 4;
-			setParser(p, p->yeari, "2006");
+			sety(p, p->yeari, 4);
 			// We now also know that part1 was the day
 			p->dayi = 0;
 			p->daylen = p->part1Len;
@@ -1773,7 +1829,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			// We are going to ASSUME (bad, bad) that it is dd-mon-yy  which is a horible assumption
 			p->ambiguousMD = 1;
 			p->yearlen = 2;
-			setParser(p, p->yeari, "06");
+			sety(p, p->yeari, 2);
 			// We now also know that part1 was the day
 			p->dayi = 0;
 			p->daylen = p->part1Len;
@@ -1808,10 +1864,18 @@ static int parseTime(const char* datestr, struct parser* p){
 		// 18 January 2018
 		// 8 January 2018
 		if (p->daylen == 2) {
-			strcpy(p->format, "02 January 2006");
+			//strcpy(p->format, "02 January 2006");
+			//p->molen =  strlen(p->datestr+3);
+			setd(p, 0, 2);
+			p->molen = setmo(p, 3, 0);
+			sety(p, 4+p->molen, 4);
 			return 0;
 		}
-		strcpy(p->format, "2 January 2006");
+		//strcpy(p->format, "2 January 2006");
+		//p->molen =  strlen(p->datestr+2);
+		setd(p, 0, 2);
+		p->molen = setmo(p, 2, 0);
+		sety(p, 3+p->molen, 4);
 		return 0; // parse("2 January 2006", datestr, loc)
 
 	case dateAlphaWsMonth:
@@ -1873,8 +1937,35 @@ static int parseTime(const char* datestr, struct parser* p){
 	return -1;
 }
 
+static void printall(struct parser* p){
+	if (p->yearbuf[0])
+		printf("year: %s ", p->yearbuf);
+	if (p->mobuf[0])
+		printf("mo: %s ", p->mobuf);
+	if (p->daybuf[0])
+		printf("day: %s ", p->daybuf);
+	if (p->wdaybuf[0])
+		printf("wday: %s ", p->wdaybuf);
+	if (p->hourbuf[0])
+		printf("h: %s ", p->hourbuf);
+	if (p->minbuf[0])
+		printf("mn: %s ", p->minbuf);
+	if (p->secbuf[0])
+		printf("s: %s ", p->secbuf);
+	if (p->msbuf[0])
+		printf("ms: %s ", p->msbuf);
+	if (p->ampmbuf[0])
+		printf("am: %s ", p->ampmbuf);
+	if (p->offsetbuf[0])
+		printf("os: %s ", p->offsetbuf);
+	if (p->tzbuf[0])
+		printf("z: %s ", p->tzbuf);
+	puts("\n==============================================================");
+}
+
 static int parse(struct parser* p, struct timeval *tv){
-	printf("format: %s, date: %s\n", p->format, p->datestr);
+	printf("date: %s\n", p->datestr);
+	printall(p);
 	return 0;
 	if (p->t.tv_sec || p->t.tv_usec){
 		tv->tv_sec = p->t.tv_sec;
