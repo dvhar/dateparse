@@ -1,4 +1,5 @@
 #include <sys/time.h>
+#include <time.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -126,9 +127,9 @@ struct parser {
 	int seci;
 	int seclen;
 	char secbuf[6];
-	int msi;
-	int mslen;
-	char msbuf[12];
+	int usi;
+	int uslen;
+	char usbuf[12];
 	int offseti;
 	int offsetlen;
 	char offsetbuf[12];
@@ -194,8 +195,9 @@ static void sets(struct parser* p, int i, int len){
 	p->secbuf[len] = 0;
 }
 static void setms(struct parser* p, int i, int len){
-	strncpy(p->msbuf, p->datestr+i, len);
-	p->msbuf[len] = 0;
+	len = len > 11 ? 11 : len;
+	strncpy(p->usbuf, p->datestr+i, len);
+	p->usbuf[len] = 0;
 }
 static void setd(struct parser* p, int i, int len){
 	strncpy(p->daybuf, p->datestr+i, len);
@@ -300,8 +302,8 @@ static void coalesceTime(struct parser* p, int end) {
 		}
 	}
 
-	if (p->msi > 0) {
-		setms(p, p->msi, p->mslen);
+	if (p->usi > 0) {
+		setms(p, p->usi, p->uslen);
 	}
 }
 static void setFullMonth(struct parser* p, char* month){
@@ -317,14 +319,6 @@ static int isInt(const char* s){
 	if (*s == 0) return 0;
 	while (*s && isdigit(*s)) ++s;
 	return *s == 0;
-}
-static int parse(struct parser* p, struct timeval *tv);
-static int parseTime(const char* datestr, struct parser* p);
-int dateparse(const char* datestr, struct timeval* tv){
-	struct parser p;
-	if (parseTime(datestr, &p))
-		return -1;
-	return parse(&p, tv);
 }
 
 static int parseTime(const char* datestr, struct parser* p){
@@ -1166,7 +1160,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				case '.':
 					p->stateTime = timePeriod;
 					p->seclen = i - p->seci;
-					p->msi = i + 1;
+					p->usi = i + 1;
 					break;
 				case 'Z':
 					p->stateTime = timeZ;
@@ -1481,20 +1475,20 @@ static int parseTime(const char* datestr, struct parser* p){
 				//       06:20:00.000 UTC
 				switch (r) {
 				case ' ':
-					p->mslen = i - p->msi;
+					p->uslen = i - p->usi;
 					p->stateTime = timePeriodWs;
 					break;
 				case '+':
 				case '-':
 					// This really shouldn't happen
-					p->mslen = i - p->msi;
+					p->uslen = i - p->usi;
 					p->offseti = i;
 					p->stateTime = timePeriodOffset;
 					break;
 				default:
 					if (isalpha(r)) {
 						// 06:20:00.000 UTC
-						p->mslen = i - p->msi;
+						p->uslen = i - p->usi;
 						p->stateTime = timePeriodWsAlpha;
 					}
 					break;
@@ -1543,7 +1537,7 @@ static int parseTime(const char* datestr, struct parser* p){
 				switch (r) {
 				case '+':
 				case '-':
-					p->mslen = i - p->msi - 1;
+					p->uslen = i - p->usi - 1;
 					p->stateTime = timePeriodWsOffset;
 					break;
 				default:
@@ -1663,7 +1657,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			break;
 
 		case timePeriod:
-			p->mslen = i - p->msi;
+			p->uslen = i - p->usi;
 			break;
 		case timeOffset:
 			// 19:55:00+0100
@@ -1942,8 +1936,8 @@ static void printall(struct parser* p){
 		printf("mn: %s ", p->minbuf);
 	if (p->secbuf[0])
 		printf("s: %s ", p->secbuf);
-	if (p->msbuf[0])
-		printf("ms: %s ", p->msbuf);
+	if (p->usbuf[0])
+		printf("ms: %s ", p->usbuf);
 	if (p->ampmbuf[0])
 		printf("am: %s ", p->ampmbuf);
 	if (p->offsetbuf[0])
@@ -2031,7 +2025,11 @@ static int parser2tm(struct parser* p, struct tm* t, int* us) {
 		t->tm_sec = atoi(p->secbuf);
 	}
 
-	if (p->msbuf[0]){
+	if (p->usbuf[0]){
+		int digits = strlen(p->usbuf);
+		float multipliers[] = { 100000, 10000, 1000, 100, 10, 1, 0.1, 0.01, 0.001, 0.0001, 0.00001 };
+		*us = (int) ( atof(p->usbuf) * multipliers[digits-1] );
+
 		//decimal point. convert to microseconds
 	}
 	//also need to calculate offset for timezones
@@ -2046,7 +2044,7 @@ static int parse(struct parser* p, struct timeval *tv){
 	if (p->t.tv_sec || p->t.tv_usec){
 		tv->tv_sec = p->t.tv_sec;
 		tv->tv_usec = p->t.tv_usec;
-		printf("sec: %ld\nusec: %d\n", tv->tv_sec, tv->tv_usec);
+		printf("sec: %ld\nusec: %ld\n", tv->tv_sec, tv->tv_usec);
 		return 0;
 	}
 	if (strlen(p->fullMonth) > 0)
@@ -2056,13 +2054,22 @@ static int parse(struct parser* p, struct timeval *tv){
 	}
 	printall(p);
 	struct tm t;
+	int us;
 	char b[100];
-	if (!parser2tm(p, &t, 0)){
+	if (!parser2tm(p, &t, &us)){
 		memset(b, 0 , 100);
 		strftime(b, 100, "%Y-%m-%d %H:%M:%S", &t);
 		printf("\n---------------------------\n%s",b);
 	} else 
 		return -1;
 	tv->tv_sec = mktime(&t);
+	tv->tv_usec = us;
 	return 0;
+}
+
+int dateparse(const char* datestr, struct timeval* tv){
+	struct parser p;
+	if (parseTime(datestr, &p))
+		return -1;
+	return parse(&p, tv);
 }
