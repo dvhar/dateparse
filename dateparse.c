@@ -228,12 +228,11 @@ static void seth(struct parser* p, int i, int len){
 }
 //copy 9 lowercase chars to buffer for month comparison
 static void lowerMonth(char* d, const char* s){
-	//printf("lowermonth %s\n", s);
-	strncpy(d,s,10);
 	int j;
-	for (j=0; j<9; ++j)
-		d[j] = tolower(d[j]);
-	d[10] = 0;
+	for (j=0; j<9 && s[j] && s[j]!=' '; ++j)
+		d[j] = tolower(s[j]);
+	d[j] = 0;
+	//printf("lowermonth %s  ", d);
 }
 static int isMonthFull(char* s){
 	int i;
@@ -1014,7 +1013,7 @@ static int parseTime(const char* datestr, struct parser* p){
 			//    oct. 7, '70
 			if (r == ' '){
 				// continue
-			} else if (isalpha(r)) {
+			} else if (isdigit(r)) {
 				p->stateDate = dateAlphaWsDigit;
 				p->dayi = i;
 			} else {
@@ -1710,21 +1709,21 @@ static int parseTime(const char* datestr, struct parser* p){
 		//  1332151919           10 seconds
 		//  20140601             8  yyyymmdd
 		//  2014                 4  yyyy
-		if (strlen(datestr) == 19) { // 19
+		if (len == 19) {
 			// nano-seconds
 			if (isInt(datestr)) {
 				long long  nanoSecs = strtoll(datestr, NULL, 10);
 				t.tv_sec = nanoSecs /  1000000000;
-				t.tv_usec = nanoSecs / 1000;
+				t.tv_usec = (nanoSecs / 1000) % 1000000;
 			}
-		} else if (strlen(datestr) == 16) { // 16
+		} else if (len == 16) {
 			// micro-seconds
 			if (isInt(datestr)) {
 				long long  microSecs = strtoll(datestr, NULL, 10);
 				t.tv_sec = microSecs /  1000000;
-				t.tv_usec = microSecs;
+				t.tv_usec = microSecs % 1000000;
 			}
-		} else if (strlen(datestr) == 14) { // 14
+		} else if (len == 14) {
 			// yyyyMMddhhmmss
 			sety(p, 0, 4);
 			setmo(p, 4, 2);
@@ -1733,31 +1732,31 @@ static int parseTime(const char* datestr, struct parser* p){
 			setmn(p, 10, 2);
 			sets(p, 12, 2);
 			return 0;
-		} else if (strlen(datestr) == 13) { // 13
+		} else if (len == 13) {
 			if (isInt(datestr)) {
 				long long  milliseconds = strtoll(datestr, NULL, 10);
 				t.tv_sec = milliseconds /  1000;
-				t.tv_usec = milliseconds * 1000;
+				t.tv_usec = (milliseconds * 1000) % 1000000;
 			}
-		} else if (strlen(datestr) == 10) { //10
+		} else if (len == 10) {
 			if (isInt(datestr)) {
 				long  secs = strtol(datestr, NULL, 10);
 				t.tv_sec = secs;
 				t.tv_usec = 0;
 			}
-		} else if (strlen(datestr) == 8) {
+		} else if (len == 8) {
 			// "20060102"
 			sety(p, 0, 4);
 			setmo(p, 4, 2);
 			setd(p, 6, 2);
 			return 0;
-		} else if (strlen(datestr) == 4) {
+		} else if (len == 4) {
 			sety(p, 0, 4);
 			return 0;
-		} else if (strlen(datestr) < 4) {
+		} else if (len < 4) {
 			return -1;
 		}
-		if (t.tv_sec != 0 && t.tv_usec != 0){
+		if (t.tv_sec != 0 || t.tv_usec != 0){
 			//if loc == nil {
 				p->t = t;
 				return 0;
