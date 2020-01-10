@@ -698,7 +698,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					if (isMonthFull(month)) {
 						strcpy(p->mobuf, month);
 						// len(" 31, 2018")   = 9
-						if (p->len+i < 10) {
+						if (p->len - i < 10) {
 							// April 8, 2009
 							p->stateDate = dateAlphaWsMonth;
 						} else {
