@@ -2104,5 +2104,6 @@ void printtime(struct timeval* tv){
 	//decimal printer not good
 	//if (tv->tv_usec)
 		//snprintf(buf+19, 9, "%g", 1000000/(float)tv->tv_usec);
+	//printf("%s",buf);
 	printf("%-30s",buf);
 }
