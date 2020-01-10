@@ -1711,22 +1711,26 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 		//  1332151919           10 seconds
 		//  20140601             8  yyyymmdd
 		//  2014                 4  yyyy
+		// nano-seconds
 		if (len == 19) {
-			// nano-seconds
+            #if INTPTR_MAX == INT64_MAX
 			if (isInt(datestr)) {
 				long long  nanoSecs = strtoll(datestr, NULL, 10);
 				t.tv_sec = nanoSecs /  1000000000;
 				t.tv_usec = (nanoSecs / 1000) % 1000000;
 			}
+            #endif
+		// micro-seconds
 		} else if (len == 16) {
-			// micro-seconds
+            #if INTPTR_MAX == INT64_MAX
 			if (isInt(datestr)) {
 				long long  microSecs = strtoll(datestr, NULL, 10);
 				t.tv_sec = microSecs /  1000000;
 				t.tv_usec = microSecs % 1000000;
 			}
+            #endif
+		// yyyyMMddhhmmss
 		} else if (len == 14) {
-			// yyyyMMddhhmmss
 			setYear(p, 0, 4);
 			setMonth(p, 4, 2);
 			setDay(p, 6, 2);
@@ -1734,16 +1738,19 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 			setMinutes(p, 10, 2);
 			setSeconds(p, 12, 2);
 			return 0;
+		//milliseconds
 		} else if (len == 13) {
+            #if INTPTR_MAX == INT64_MAX
 			if (isInt(datestr)) {
 				long long  milliseconds = strtoll(datestr, NULL, 10);
 				t.tv_sec = milliseconds /  1000;
 				t.tv_usec = (milliseconds * 1000) % 1000000;
 			}
+            #endif
+		//seconds
 		} else if (len == 10) {
 			if (isInt(datestr)) {
-				long  secs = strtol(datestr, NULL, 10);
-				t.tv_sec = secs;
+				t.tv_sec = strtol(datestr, NULL, 10);
 				t.tv_usec = 0;
 			}
 		} else if (len == 8) {
@@ -2079,7 +2086,7 @@ int dateparse(const char* datestr, struct timeval* tv, int stringlen){
 
 #if INTPTR_MAX == INT64_MAX
 #define date_t long long // microseconds - timeval in one number
-//get result as 64 but number of microseconds
+//get result as 64 bit number of microseconds
 int dateparse64(const char* datestr, date_t* date, int stringlen){
 	struct timeval tv;
 	int err = dateparse(datestr, &tv, stringlen);
