@@ -146,7 +146,7 @@ static void newParser(const char* s, struct parser* p, int stringlen){
 	p->stateTime = timeIgnore;
 	p->preferMonthFirst = 1;
 	p->datestr = p->datestrbuf;
-	p->len = stringlen ? stringlen : strlen(s);
+	p->len = stringlen;
 	//TODO: only copy if using trimExtra
 	strncpy(p->datestr, s, BUFSIZE);
 }
@@ -318,9 +318,9 @@ static int isInt(const char* s){
 	return *s == 0;
 }
 
-static int parseTime(const char* datestr, struct parser* p){
+static int parseTime(const char* datestr, struct parser* p, int stringlen){
 
-	 newParser(datestr, p, 0);
+	newParser(datestr, p, stringlen);
 	int len = p->len, i=0, length;
 	if (len > 59) return -1;
 	char r;
@@ -938,7 +938,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
-						return parseTime(buf, p);
+						return parseTime(buf, p, p->len-1);
 					}
 				}
 				break;
@@ -948,7 +948,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
-						return parseTime(buf, p);
+						return parseTime(buf, p, p->len-1);
 					}
 				}
 				break;
@@ -958,7 +958,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
-						return parseTime(buf, p);
+						return parseTime(buf, p, p->len-1);
 					}
 				}
 				break;
@@ -968,7 +968,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
-						return parseTime(buf, p);
+						return parseTime(buf, p, p->len-1);
 					}
 				}
 			}
@@ -1140,7 +1140,7 @@ static int parseTime(const char* datestr, struct parser* p){
 					// 2014-05-11 08:20:13,787
 					strcpy(buf, datestr);
 					buf[i] = '.';
-					return parseTime(buf, p);
+					return parseTime(buf, p, p->len);
 				case '+':
 				case '-':
 					//   03:21:51+00:00
@@ -2065,11 +2065,37 @@ static int parse(struct parser* p, struct timeval *tv){
 	return 0;
 }
 
-int dateparse(const char* datestr, struct timeval* tv){
+//get result as timeval struct
+int dateparse(const char* datestr, struct timeval* tv, int stringlen){
 	struct parser p;
 	tv->tv_sec = tv->tv_usec = 0;
-	if (parseTime(datestr, &p))
+	if (!stringlen)
+		stringlen = strlen(datestr);
+	if (parseTime(datestr, &p, stringlen))
 		return -1;
 	return parse(&p, tv);
 }
 
+
+#if INTPTR_MAX == INT64_MAX
+#define date_t long long // microseconds - timeval in one number
+//get result as 64 but number of microseconds
+int dateparse64(const char* datestr, date_t* date, int stringlen){
+	struct timeval tv;
+	int err = dateparse(datestr, &tv, stringlen);
+	*date = tv.tv_sec * 1000000 + tv.tv_usec;
+	return err;
+}
+#endif
+
+//print datetime
+void printtime(struct timeval* tv){
+	struct tm* tminfo = localtime(&(tv->tv_sec));
+	//struct tm* tminfo = gmtime(&(tv->tv_sec));
+	char buf[30];
+	strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tminfo);
+	//decimal printer not good
+	//if (tv->tv_usec)
+		//snprintf(buf+19, 9, "%g", 1000000/(float)tv->tv_usec);
+	printf("%-30s",buf);
+}
