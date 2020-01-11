@@ -13,9 +13,7 @@ Parser misses a lot of timezones
 
 Doesn't do anything with timezones and offsets
 
-Unix time gets parsed as UTC but should be localtime like everything else
-
-Unix time only works with seconds (no millisecond+ precision) in 32 bit mode
+Unix time limited to seconds (no millisecond+ precision) in 32 bit mode
 
 ### Examples:
 
@@ -107,10 +105,9 @@ Unix time only works with seconds (no millisecond+ precision) in 32 bit mode
 | 2014.03.30                                            | 2014-03-30 00:00:00  |  0           |
 | 20140601                                              | 2014-06-01 00:00:00  |  0           |
 | 20140722105203                                        | 2014-07-22 10:52:03  |  0           |
-- these ones are getting parsed as UTC, not local time
-| 1332151919                                            | 2012-03-19 05:11:59  |  0           |
-| 1384216367189                                         | 2013-11-11 18:32:47  |  189000      |
-| 1384216367111222                                      | 2013-11-11 18:32:47  |  111222      |
-| 1384216367111222333                                   | 2013-11-11 18:32:47  |  111222      |
+| 1332151919                                            | 2012-03-19 11:11:59  |  0           |
+| 1384216367189                                         | 2013-11-12 00:32:47  |  189000      |
+| 1384216367111222                                      | 2013-11-12 00:32:47  |  111222      |
+| 1384216367111222333                                   | 2013-11-12 00:32:47  |  111222      |
 +-------------------------------------------------------+----------------------+--------------+
 ```
