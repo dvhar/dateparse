@@ -17,6 +17,8 @@ extern "C" {
 
 void printtime(struct timeval* tv);
 
+//use 3 params if you have strlen already, otherwise use 2
+
 //put result in timeval struct
 int dateparse(const char* datestr, struct timeval* tv, int stringlen);
 #define dateparse(D, T) dateparse(D, T, 0)
@@ -25,12 +27,9 @@ int dateparse(const char* datestr, struct timeval* tv, int stringlen);
 
 //put result in 64 bit int
 #if INTPTR_MAX == INT64_MAX
-
 #define date_t long long // microseconds
-
 int dateparse64(const char* datestr, date_t* date, int stringlen);
 #define dateparse64(D, T) dateparse64(D, T, 0)
-
 #endif
 
 

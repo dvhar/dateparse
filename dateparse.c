@@ -1766,13 +1766,12 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 			return -1;
 		}
 		if (t.tv_sec != 0 || t.tv_usec != 0){
-			//if loc == nil {
-				p->t = t;
-				return 0;
-			//}
-			//t = t.In(loc)
-			//p->t = &t
-			//return p, nil
+			//would like a faster way to convert seconds to right timezone
+			struct tm* m;
+			m = gmtime((time_t*)&(t.tv_sec));
+			t.tv_sec = mktime(m);
+			p->t = t;
+			return 0;
 		}
 		break;
 
@@ -2084,9 +2083,9 @@ int dateparse(const char* datestr, struct timeval* tv, int stringlen){
 }
 
 
-#if INTPTR_MAX == INT64_MAX
-#define date_t long long // microseconds - timeval in one number
 //get result as 64 bit number of microseconds
+#if INTPTR_MAX == INT64_MAX
+#define date_t long long
 int dateparse64(const char* datestr, date_t* date, int stringlen){
 	struct timeval tv;
 	int err = dateparse(datestr, &tv, stringlen);
@@ -2095,15 +2094,13 @@ int dateparse64(const char* datestr, date_t* date, int stringlen){
 }
 #endif
 
-//print datetime
+//printer for debugging
 void printtime(struct timeval* tv){
 	struct tm* tminfo = localtime(&(tv->tv_sec));
-	//struct tm* tminfo = gmtime(&(tv->tv_sec));
 	char buf[30];
 	strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tminfo);
 	//decimal printer not good
 	//if (tv->tv_usec)
 		//snprintf(buf+19, 9, "%g", 1000000/(float)tv->tv_usec);
-	//printf("%s",buf);
 	printf("%-30s",buf);
 }
