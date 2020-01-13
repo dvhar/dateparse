@@ -1,5 +1,29 @@
 #include "dateparse.h"
-int main(){
+
+void runtests();
+void runrepl();
+
+int main(int argc, char** argv){
+	if (argc > 1)
+		runrepl();
+	else
+		runtests();
+	return 0;
+}
+
+void runrepl(){
+	char buf[100];
+	struct timeval tv;
+	for(;;){
+		fgets(buf, 100, stdin);
+		strtok(buf, "\n");
+		dateparse_2(buf, &tv);
+		printtime(&tv);
+		puts("\n");
+	}
+}
+
+void runtests(){
 		
 	char* dates[] = {
 		"May 8, 2009 5:57:51 PM",
@@ -108,7 +132,7 @@ int main(){
 	for (i=0; i<len; ++i){
 		puts("-------------------------------------------------------------------------------------------------------------");
 		printf("%-60s", dates[i]);
-		if (dateparse(dates[i], &tv)){
+		if (dateparse_2(dates[i], &tv)){
 			puts("failed");
 		} else {
 			printtime(&tv);

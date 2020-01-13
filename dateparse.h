@@ -15,25 +15,29 @@ extern "C" {
 #endif
 
 
-void printtime(struct timeval* tv);
-
-//use 3 params if you have strlen already, otherwise use 2
 
 //put result in timeval struct
 int dateparse(const char* datestr, struct timeval* tv, int stringlen);
-#define dateparse(D, T) dateparse(D, T, 0)
+#define dateparse_2(D, T) dateparse(D, T, 0)
+
+//returns statically allocated date string
+char* datestring(struct timeval* tv);
 
 
-
-//put result in 64 bit int
 #if INTPTR_MAX == INT64_MAX
 #define date_t long long // microseconds
+
+//put result in 64 bit int
 int dateparse64(const char* datestr, date_t* date, int stringlen);
-#define dateparse64(D, T) dateparse64(D, T, 0)
+#define dateparse64_2(D, T) dateparse64(D, T, 0)
+
+char* datestring64(date_t d);
+
 #endif
 
 
 
+void printtime(struct timeval* tv);
 
 #ifdef __cplusplus
 }
