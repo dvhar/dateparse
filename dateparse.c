@@ -2083,17 +2083,6 @@ int dateparse(const char* datestr, struct timeval* tv, int stringlen){
 }
 
 
-//get result as 64 bit number of microseconds
-#if INTPTR_MAX == INT64_MAX
-#define date_t long long
-int dateparse64(const char* datestr, date_t* date, int stringlen){
-	struct timeval tv;
-	int err = dateparse(datestr, &tv, stringlen);
-	*date = tv.tv_sec * 1000000 + tv.tv_usec;
-	return err;
-}
-#endif
-
 //printer for debugging
 void printtime(struct timeval* tv){
 	struct tm* tminfo = localtime(&(tv->tv_sec));
@@ -2104,3 +2093,28 @@ void printtime(struct timeval* tv){
 		//snprintf(buf+19, 9, "%g", 1000000/(float)tv->tv_usec);
 	printf("%-30s",buf);
 }
+
+char dateprintbuf[30];
+char* datestring(struct timeval* tv){
+	struct tm* tminfo = localtime(&(tv->tv_sec));
+	strftime(dateprintbuf, sizeof(dateprintbuf), "%Y-%m-%d %H:%M:%S", tminfo);
+	return dateprintbuf;
+}
+
+//get result as 64 bit number of microseconds
+#if INTPTR_MAX == INT64_MAX
+#define date_t long long
+int dateparse64(const char* datestr, date_t* date, int stringlen){
+	struct timeval tv;
+	int err = dateparse(datestr, &tv, stringlen);
+	*date = tv.tv_sec * 1000000 + tv.tv_usec;
+	return err;
+}
+char* datestring64(date_t d){
+	struct timeval tv;
+	tv.tv_sec = d/1000000;
+	tv.tv_usec = d%1000000;
+	return datestring(&tv);
+}
+#endif
+
