@@ -1981,7 +1981,7 @@ static int monthNum(char* m){
 	return -1;
 }
 
-static int parser2tm(struct parser* p, struct tm* t, int* us) {
+static int parser2tm(struct parser* p, struct tm* t, int* us, short *offset) {
 	int a;
 	memset(t, 0 , sizeof(struct tm));
 	t->tm_isdst = -1;
@@ -2042,6 +2042,30 @@ static int parser2tm(struct parser* p, struct tm* t, int* us) {
 		//printf("decimal: num.%d  from %s\n", *us, p->usbuf);
 	}
 
+	if (p->offsetbuf[0]){
+		char c = p->offsetbuf[0];
+		short sign;
+		short minuteOffset = 0;
+		if (c == '-') sign = -1;
+		else sign = 1;
+		int i,j=0;
+		for (i=1; i<7 && p->offsetbuf[i]; i++){
+			c = p->offsetbuf[i];
+			if (isdigit(c)){
+				switch (i-j){
+				case 1: minuteOffset = 600*(c-48); break;
+				case 2: minuteOffset += 60*(c-48); break;
+				case 3: minuteOffset += 10*(c-48); break;
+				case 4: minuteOffset += c-48;      break;
+				}
+			} else if (c == ':') {
+				j = 1;
+			} else {
+				return -1;
+			}
+		}
+		*offset = minuteOffset*sign;
+	} else *offset = 0;
 	//printf("\ntm:\n\tsec: %d\n\tmin: %d\n\thour: %d\n\tmday: %d\n\tmon: %d\n\tyear: %d\n\twday: %d\n\tyday: %d\n\tdst: %d\n\n",
 			//t->tm_sec, t->tm_min, t->tm_hour, t->tm_mday, t->tm_mon, t->tm_year, t->tm_wday, t->tm_yday, t->tm_isdst);
 	//also need to calculate offset for timezones
@@ -2050,7 +2074,7 @@ static int parser2tm(struct parser* p, struct tm* t, int* us) {
 	return 0;
 }
 
-static int parse(struct parser* p, struct timeval *tv){
+static int parse(struct parser* p, struct timeval *tv, short *offset){
 	if (p->t.tv_sec || p->t.tv_usec){
 		tv->tv_sec = p->t.tv_sec;
 		tv->tv_usec = p->t.tv_usec;
@@ -2064,7 +2088,7 @@ static int parse(struct parser* p, struct timeval *tv){
 	//printall(p);
 	struct tm t;
 	int us = 0;
-	if (parser2tm(p, &t, &us))
+	if (parser2tm(p, &t, &us, offset))
 		return -1;
 	tv->tv_sec = mktime(&t);
 	tv->tv_usec = us;
@@ -2072,26 +2096,14 @@ static int parse(struct parser* p, struct timeval *tv){
 }
 
 //get result as timeval struct
-int dateparse(const char* datestr, struct timeval* tv, int stringlen){
+int dateparse(const char* datestr, struct timeval* tv, short *offset, int stringlen){
 	struct parser p;
 	tv->tv_sec = tv->tv_usec = 0;
 	if (!stringlen)
 		stringlen = strlen(datestr);
 	if (parseTime(datestr, &p, stringlen))
 		return -1;
-	return parse(&p, tv);
-}
-
-
-//printer for debugging
-void printtime(struct timeval* tv){
-	struct tm* tminfo = localtime(&(tv->tv_sec));
-	char buf[30];
-	strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tminfo);
-	//decimal printer not good
-	//if (tv->tv_usec)
-		//snprintf(buf+19, 9, "%g", 1000000/(float)tv->tv_usec);
-	printf("%-30s",buf);
+	return parse(&p, tv, offset);
 }
 
 char dateprintbuf[30];
@@ -2104,9 +2116,9 @@ char* datestring(struct timeval* tv){
 //get result as 64 bit number of microseconds
 #if INTPTR_MAX == INT64_MAX
 #define date_t long long
-int dateparse64(const char* datestr, date_t* date, int stringlen){
+int dateparse64(const char* datestr, date_t* date, short *offset, int stringlen){
 	struct timeval tv;
-	int err = dateparse(datestr, &tv, stringlen);
+	int err = dateparse(datestr, &tv, offset, stringlen);
 	*date = tv.tv_sec * 1000000 + tv.tv_usec;
 	return err;
 }
