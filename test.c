@@ -13,13 +13,13 @@ int main(int argc, char** argv){
 
 void runrepl(){
 	char buf[100];
+	short os;
 	struct timeval tv;
 	for(;;){
 		fgets(buf, 100, stdin);
 		strtok(buf, "\n");
-		dateparse_2(buf, &tv);
-		printtime(&tv);
-		puts("\n");
+		dateparse_3(buf, &tv, &os);
+		puts(datestring(&tv));
 	}
 }
 
@@ -126,17 +126,17 @@ void runtests(){
 
 	int len = sizeof(dates)/sizeof(char*);
 	int i;
+	short os;
 	struct timeval tv;
 
-	printf("%-60s%-32s%s\n", "date string", "parsed as", "microseconds");
+	printf("%-63s%-24s%-11s%s\n", "date string", "parsed as", "useconds", "offset");
 	for (i=0; i<len; ++i){
 		puts("-------------------------------------------------------------------------------------------------------------");
 		printf("%-60s", dates[i]);
-		if (dateparse_2(dates[i], &tv)){
+		if (dateparse_3(dates[i], &tv, &os)){
 			puts("failed");
 		} else {
-			printtime(&tv);
-			printf("   %d\n", tv.tv_usec);
+			printf("   %-24s%-12d%d\n", datestring(&tv), tv.tv_usec, os);
 		}
 	}
 }
