@@ -19,6 +19,7 @@ extern "C" {
 //params: date string, result timeval, result offset, stringlength if available
 int dateparse(const char* datestr, struct timeval* tv, short* offset, int stringlen);
 #define dateparse_3(D, T, F) dateparse(D, T, F, 0)
+#define dateparse_2(D, T)    dateparse(D, T, 0, 0)
 
 //returns statically allocated date string
 char* datestring(struct timeval* tv);
@@ -30,6 +31,7 @@ char* datestring(struct timeval* tv);
 //put result in 64 bit int
 int dateparse64(const char* datestr, date_t* date, short* offset, int stringlen);
 #define dateparse64_3(D, T, F) dateparse64(D, T, F, 0)
+#define dateparse64_2(D, T)    dateparse64(D, T, 0, 0)
 
 char* datestring64(date_t d);
 #endif
