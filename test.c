@@ -1,25 +1,27 @@
 #include "dateparse.h"
 
 void runtests();
-void runrepl();
+void runfile();
+FILE *f;
 
 int main(int argc, char** argv){
-	if (argc > 1)
-		runrepl();
-	else
+	if (argc > 1){
+		f = fopen(argv[1], "r");
+		if (!f) f = stdin;
+		runfile();
+	} else {
 		runtests();
+	}
 	return 0;
 }
 
-void runrepl(){
+void runfile(){
 	char buf[100];
 	struct timeval tv;
-	for(;;){
-		fgets(buf, 100, stdin);
+	while(fgets(buf, 100, f)){
 		strtok(buf, "\n");
 		dateparse_2(buf, &tv);
-		printtime(&tv);
-		puts("\n");
+		printf("%s\n", datestring(&tv));
 	}
 }
 
