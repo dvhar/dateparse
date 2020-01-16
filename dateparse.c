@@ -2032,7 +2032,7 @@ static int parser2tm(struct parser* p, struct tm* t, int* us, short *offset) {
 		t->tm_sec = atoi(p->secbuf);
 	}
 
-	if (p->usbuf[0]){
+	if (p->usbuf[0] && us){
 		*us = 0;
 		int i, multiple = 100000;
 		for (i=0; p->usbuf[i] && i<6; i++){
@@ -2042,7 +2042,7 @@ static int parser2tm(struct parser* p, struct tm* t, int* us, short *offset) {
 		//printf("decimal: num.%d  from %s\n", *us, p->usbuf);
 	}
 
-	if (p->offsetbuf[0]){
+	if (p->offsetbuf[0] && offset){
 		char c = p->offsetbuf[0];
 		short sign;
 		short minuteOffset = 0;
@@ -2065,7 +2065,7 @@ static int parser2tm(struct parser* p, struct tm* t, int* us, short *offset) {
 			}
 		}
 		*offset = minuteOffset*sign;
-	} else *offset = 0;
+	} else if (offset) *offset = 0;
 	//printf("\ntm:\n\tsec: %d\n\tmin: %d\n\thour: %d\n\tmday: %d\n\tmon: %d\n\tyear: %d\n\twday: %d\n\tyday: %d\n\tdst: %d\n\n",
 			//t->tm_sec, t->tm_min, t->tm_hour, t->tm_mday, t->tm_mon, t->tm_year, t->tm_wday, t->tm_yday, t->tm_isdst);
 	//also need to calculate offset for timezones
