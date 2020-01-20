@@ -2108,7 +2108,8 @@ int dateparse(const char* datestr, struct timeval* tv, short *offset, int string
 
 char dateprintbuf[30];
 char* datestring(struct timeval* tv){
-	struct tm* tminfo = localtime(&(tv->tv_sec));
+	time_t t = tv->tv_sec;
+	struct tm* tminfo = localtime(&t);
 	strftime(dateprintbuf, sizeof(dateprintbuf), "%Y-%m-%d %H:%M:%S", tminfo);
 	return dateprintbuf;
 }
