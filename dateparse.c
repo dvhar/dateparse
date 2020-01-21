@@ -140,6 +140,18 @@ struct parser {
 	struct timeval t;
 };
 
+static time_t mktimegm(const struct tm *tm){
+	static const int mdays[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+	int year = tm->tm_year - 70;
+	int month = tm->tm_mon;
+	int day = tm->tm_mday;
+	if (month < 0 || month > 11) return -1;
+	if (month < 2 || (year + 2) % 4) day--;
+	if (tm->tm_hour < 0 || tm->tm_min < 0 || tm->tm_sec < 0) return -1;
+	return (year * 365 + (year + 1) / 4 + mdays[month] + day) * 24*60*60UL +
+		tm->tm_hour * 60*60 + tm->tm_min * 60 + tm->tm_sec;
+}
+
 static void newParser(const char* s, struct parser* p, int stringlen){
 	memset(p, 0, sizeof(struct parser));
 	p->stateDate = dateStart;
@@ -1766,10 +1778,6 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 			return -1;
 		}
 		if (t.tv_sec != 0 || t.tv_usec != 0){
-			//would like a faster way to convert seconds to right timezone
-			struct tm* m;
-			m = gmtime((time_t*)&(t.tv_sec));
-			t.tv_sec = mktime(m);
 			p->t = t;
 			return 0;
 		}
@@ -2090,7 +2098,7 @@ static int parse(struct parser* p, struct timeval *tv, short *offset){
 	int us = 0;
 	if (parser2tm(p, &t, &us, offset))
 		return -1;
-	tv->tv_sec = mktime(&t);
+	tv->tv_sec = mktimegm(&t);
 	tv->tv_usec = us;
 	return 0;
 }
@@ -2109,7 +2117,7 @@ int dateparse(const char* datestr, struct timeval* tv, short *offset, int string
 char dateprintbuf[30];
 char* datestring(struct timeval* tv){
 	time_t t = tv->tv_sec;
-	struct tm* tminfo = localtime(&t);
+	struct tm* tminfo = gmtime(&t);
 	strftime(dateprintbuf, sizeof(dateprintbuf), "%Y-%m-%d %H:%M:%S", tminfo);
 	return dateprintbuf;
 }
