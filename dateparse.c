@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
+#define date_t long long
 #define BUFSIZE 100
 #define MONTHBUF 14
 enum dateStates {
@@ -137,7 +138,7 @@ struct parser {
 	int tzi;
 	int tzlen;
 	char tzbuf[30];
-	struct timeval t;
+	date_t t;
 };
 
 #define LEAPOCH (946684800LL + 86400*(31+29))
@@ -151,7 +152,7 @@ int __secs_to_tm(long long t, struct tm *tm){
 	int months;
 	int wday, yday, leap;
 	static const char days_in_month[] = {31,30,31,30,31,31,30,31,30,31,31,29};
-	/* Reject time_t values whose year would overflow int */
+	/* Reject date_t values whose year would overflow int */
 	if (t < INT_MIN * 31622400LL || t > INT_MAX * 31622400LL)
 		return -1;
 	secs = t - LEAPOCH;
@@ -200,22 +201,24 @@ int __secs_to_tm(long long t, struct tm *tm){
 	tm->tm_sec = remsecs % 60;
 	return 0;
 }
-struct tm * gmtime_musl( const time_t * t){
+struct tm * gmtime64(date_t t){
 	static struct tm tmm;
-	__secs_to_tm((long long)*t, &tmm);
+	if (t < 0 && t%1000000) t -= 1000000; //microseconds increment seconds digit when negative
+	__secs_to_tm(t/1000000, &tmm);
 	return &tmm;
 }
 
-static time_t mktimegm(const struct tm *tm){
-	static const int mdays[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
-	int year = tm->tm_year - 70;
-	int month = tm->tm_mon;
-	int day = tm->tm_mday;
+date_t mktimegm(const struct tm *tm){
+	static const date_t mdays[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+	date_t year = tm->tm_year - 70;
+	date_t month = tm->tm_mon;
+	date_t day = tm->tm_mday;
 	if (month < 0 || month > 11) return -1;
 	if (month < 2 || (year + 2) % 4) day--;
 	if (tm->tm_hour < 0 || tm->tm_min < 0 || tm->tm_sec < 0) return -1;
-	return (year * 365 + (year + 1) / 4 + mdays[month] + day) * 24*60*60UL +
+	date_t sec = (year * 365 + (year + 1) / 4 + mdays[month] + day) * 24*60*60 +
 		tm->tm_hour * 60*60 + tm->tm_min * 60 + tm->tm_sec;
+	return sec * 1000000;
 }
 
 static void newParser(const char* s, struct parser* p, int stringlen){
@@ -1777,7 +1780,7 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 		coalesceTime(p, i);
 	}// time if
 
-	struct timeval t;
+	date_t dt = 0;
 	switch (p->stateDate) {
 	case dateDigit:
 		// unixy timestamps ish
@@ -1794,17 +1797,14 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
             #if INTPTR_MAX == INT64_MAX
 			if (isInt(datestr)) {
 				long long  nanoSecs = strtoll(datestr, NULL, 10);
-				t.tv_sec = nanoSecs /  1000000000;
-				t.tv_usec = (nanoSecs / 1000) % 1000000;
+				dt = nanoSecs / 1000;
 			}
             #endif
 		// micro-seconds
 		} else if (len == 16) {
             #if INTPTR_MAX == INT64_MAX
 			if (isInt(datestr)) {
-				long long  microSecs = strtoll(datestr, NULL, 10);
-				t.tv_sec = microSecs /  1000000;
-				t.tv_usec = microSecs % 1000000;
+				dt = strtoll(datestr, NULL, 10);
 			}
             #endif
 		// yyyyMMddhhmmss
@@ -1821,15 +1821,13 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
             #if INTPTR_MAX == INT64_MAX
 			if (isInt(datestr)) {
 				long long  milliseconds = strtoll(datestr, NULL, 10);
-				t.tv_sec = milliseconds /  1000;
-				t.tv_usec = (milliseconds * 1000) % 1000000;
+				dt = milliseconds * 1000;
 			}
             #endif
 		//seconds
 		} else if (len == 10) {
 			if (isInt(datestr)) {
-				t.tv_sec = strtol(datestr, NULL, 10);
-				t.tv_usec = 0;
+				dt = strtol(datestr, NULL, 10) * 1000000;
 			}
 		} else if (len == 8) {
 			// "20060102"
@@ -1843,8 +1841,8 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 		} else if (len < 4) {
 			return -1;
 		}
-		if (t.tv_sec != 0 || t.tv_usec != 0){
-			p->t = t;
+		if (dt){
+			p->t = dt;
 			return 0;
 		}
 		break;
@@ -2055,7 +2053,7 @@ static int monthNum(char* m){
 	return -1;
 }
 
-static int parser2tm(struct parser* p, struct tm* t, int* us, short *offset) {
+static int parser2tm(struct parser* p, struct tm* t, date_t* us, short *offset) {
 	int a;
 	memset(t, 0 , sizeof(struct tm));
 	t->tm_isdst = -1;
@@ -2065,7 +2063,7 @@ static int parser2tm(struct parser* p, struct tm* t, int* us, short *offset) {
 		if (a > 999)
 			t->tm_year = a - 1900;
 		else {
-			time_t now = time(0);
+			int now = time(0);
 			if (a > now/(60*60*24*367)-30) // 20th century
 				t->tm_year = a;
 			else //21st century
@@ -2148,10 +2146,9 @@ static int parser2tm(struct parser* p, struct tm* t, int* us, short *offset) {
 	return 0;
 }
 
-static int parse(struct parser* p, struct timeval *tv, short *offset){
-	if (p->t.tv_sec || p->t.tv_usec){
-		tv->tv_sec = p->t.tv_sec;
-		tv->tv_usec = p->t.tv_usec;
+static int parse(struct parser* p, date_t* dt, short *offset){
+	if (p->t){
+		*dt = p->t;
 		return 0;
 	}
 	if (p->fullMonth[0])
@@ -2161,47 +2158,25 @@ static int parse(struct parser* p, struct timeval *tv, short *offset){
 	}
 	//printall(p);
 	struct tm t;
-	int us = 0;
-	if (parser2tm(p, &t, &us, offset))
+	if (parser2tm(p, &t, dt, offset))
 		return -1;
-	tv->tv_sec = mktimegm(&t);
-	tv->tv_usec = us;
+	*dt += mktimegm(&t);
 	return 0;
 }
 
-//get result as timeval struct
-int dateparse(const char* datestr, struct timeval* tv, short *offset, int stringlen){
+int dateparse(const char* datestr, date_t* t, short *offset, int stringlen){
 	struct parser p;
-	tv->tv_sec = tv->tv_usec = 0;
+	*t = 0;
 	if (!stringlen)
 		stringlen = strlen(datestr);
 	if (parseTime(datestr, &p, stringlen))
 		return -1;
-	return parse(&p, tv, offset);
+	return parse(&p, t, offset);
 }
 
-char* datestring(struct timeval* tv){
+char* datestring(date_t t){
 	static char dateprintbuf[30];
-	time_t t = tv->tv_sec;
-	struct tm* tminfo = gmtime_musl(&t);
+	struct tm* tminfo = gmtime64(t);
 	strftime(dateprintbuf, 30, "%Y-%m-%d %H:%M:%S", tminfo);
 	return dateprintbuf;
 }
-
-//get result as 64 bit number of microseconds
-#if INTPTR_MAX == INT64_MAX
-#define date_t long long
-int dateparse64(const char* datestr, date_t* date, short *offset, int stringlen){
-	struct timeval tv;
-	int err = dateparse(datestr, &tv, offset, stringlen);
-	*date = tv.tv_sec * 1000000 + tv.tv_usec;
-	return err;
-}
-char* datestring64(date_t d){
-	struct timeval tv;
-	tv.tv_sec = d/1000000;
-	tv.tv_usec = d%1000000;
-	return datestring(&tv);
-}
-#endif
-

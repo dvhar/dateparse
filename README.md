@@ -13,8 +13,6 @@ Parser misses a lot of timezones
 
 Doesn't do anything with timezones and offsets
 
-Unix time limited to seconds (no millisecond+ precision) in 32 bit mode
-
 ### Examples:
 
 ```
