@@ -1827,7 +1827,7 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 		//seconds
 		} else if (len == 10) {
 			if (isInt(datestr)) {
-				dt = strtol(datestr, NULL, 10) * 1000000;
+				dt = strtoll(datestr, NULL, 10) * 1000000;
 			}
 		} else if (len == 8) {
 			// "20060102"
