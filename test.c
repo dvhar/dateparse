@@ -17,12 +17,11 @@ int main(int argc, char** argv){
 
 void runfile(){
 	char buf[100];
-	short os;
-	struct timeval tv;
+	date_t d;
 	while(fgets(buf, 100, f)){
 		strtok(buf, "\n");
-		dateparse_3(buf, &tv, &os);
-		puts(datestring(&tv));
+		dateparse_2(buf, &d);
+		puts(datestring(d));
 	}
 }
 
@@ -116,6 +115,7 @@ void runtests(){
 		"1614-05-11 08:20:13,787",
 		"1514-05-11 08:20:13,787",
 		"1414-05-11 08:20:13,787",
+		"1414-05-11 08:20:13",
 		// mm.dd.yy
 		"3.31.2014",
 		"03.31.2014",
@@ -136,16 +136,16 @@ void runtests(){
 	int len = sizeof(dates)/sizeof(char*);
 	int i;
 	short os;
-	struct timeval tv;
+	date_t d;
 
 	printf("%-63s%-24s%-11s%s\n", "date string", "parsed as", "useconds", "offset");
 	for (i=0; i<len; ++i){
 		puts("-------------------------------------------------------------------------------------------------------------");
 		printf("%-60s", dates[i]);
-		if (dateparse_3(dates[i], &tv, &os)){
+		if (dateparse_3(dates[i], &d, &os)){
 			puts("failed");
 		} else {
-			printf("   %-24s%-12d%d\n", datestring(&tv), tv.tv_usec, os);
+			printf("   %-24s%-12d%d\n", datestring(d), mcs(d), os);
 		}
 	}
 }
