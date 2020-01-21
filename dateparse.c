@@ -6,7 +6,7 @@
 #include <stdio.h>
 #define BUFSIZE 100
 #define MONTHBUF 14
-
+struct tm * gmtime2 (const time_t * tim_p);
 enum dateStates {
 	dateStart,
 	dateDigit,
@@ -2114,11 +2114,11 @@ int dateparse(const char* datestr, struct timeval* tv, short *offset, int string
 	return parse(&p, tv, offset);
 }
 
-char dateprintbuf[30];
 char* datestring(struct timeval* tv){
+	static char dateprintbuf[30];
 	time_t t = tv->tv_sec;
-	struct tm* tminfo = gmtime(&t);
-	strftime(dateprintbuf, sizeof(dateprintbuf), "%Y-%m-%d %H:%M:%S", tminfo);
+	struct tm* tminfo = gmtime2(&t);
+	strftime(dateprintbuf, 30, "%Y-%m-%d %H:%M:%S", tminfo);
 	return dateprintbuf;
 }
 
