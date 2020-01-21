@@ -1,12 +1,41 @@
+/*
+__secs_to_tm copied from musl-libc so here is its license
+Using this to avoid using implementations that have more limited year range.
+
+musl as a whole is licensed under the following standard MIT license:
+
+----------------------------------------------------------------------
+Copyright © 2005-2020 Rich Felker, et al.
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+----------------------------------------------------------------------
+*/
 #include <sys/time.h>
 #include <time.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
 #define BUFSIZE 100
 #define MONTHBUF 14
-struct tm * gmtime2 (const time_t * tim_p);
 enum dateStates {
 	dateStart,
 	dateDigit,
@@ -139,6 +168,72 @@ struct parser {
 	char tzbuf[30];
 	struct timeval t;
 };
+
+#define LEAPOCH (946684800LL + 86400*(31+29))
+#define DAYS_PER_400Y (365*400 + 97)
+#define DAYS_PER_100Y (365*100 + 24)
+#define DAYS_PER_4Y   (365*4   + 1)
+int __secs_to_tm(long long t, struct tm *tm){
+	long long days, secs, years;
+	int remdays, remsecs, remyears;
+	int qc_cycles, c_cycles, q_cycles;
+	int months;
+	int wday, yday, leap;
+	static const char days_in_month[] = {31,30,31,30,31,31,30,31,30,31,31,29};
+	/* Reject time_t values whose year would overflow int */
+	if (t < INT_MIN * 31622400LL || t > INT_MAX * 31622400LL)
+		return -1;
+	secs = t - LEAPOCH;
+	days = secs / 86400;
+	remsecs = secs % 86400;
+	if (remsecs < 0) {
+		remsecs += 86400;
+		days--;
+	}
+	wday = (3+days)%7;
+	if (wday < 0) wday += 7;
+	qc_cycles = days / DAYS_PER_400Y;
+	remdays = days % DAYS_PER_400Y;
+	if (remdays < 0) {
+		remdays += DAYS_PER_400Y;
+		qc_cycles--;
+	}
+	c_cycles = remdays / DAYS_PER_100Y;
+	if (c_cycles == 4) c_cycles--;
+	remdays -= c_cycles * DAYS_PER_100Y;
+	q_cycles = remdays / DAYS_PER_4Y;
+	if (q_cycles == 25) q_cycles--;
+	remdays -= q_cycles * DAYS_PER_4Y;
+	remyears = remdays / 365;
+	if (remyears == 4) remyears--;
+	remdays -= remyears * 365;
+	leap = !remyears && (q_cycles || !c_cycles);
+	yday = remdays + 31 + 28 + leap;
+	if (yday >= 365+leap) yday -= 365+leap;
+	years = remyears + 4*q_cycles + 100*c_cycles + 400LL*qc_cycles;
+	for (months=0; days_in_month[months] <= remdays; months++)
+		remdays -= days_in_month[months];
+	if (months >= 10) {
+		months -= 12;
+		years++;
+	}
+	if (years+100 > INT_MAX || years+100 < INT_MIN)
+		return -1;
+	tm->tm_year = years + 100;
+	tm->tm_mon = months + 2;
+	tm->tm_mday = remdays + 1;
+	tm->tm_wday = wday;
+	tm->tm_yday = yday;
+	tm->tm_hour = remsecs / 3600;
+	tm->tm_min = remsecs / 60 % 60;
+	tm->tm_sec = remsecs % 60;
+	return 0;
+}
+struct tm * gmtime_musl( const time_t * t){
+	static struct tm tmm;
+	__secs_to_tm((long long)*t, &tmm);
+	return &tmm;
+}
 
 static time_t mktimegm(const struct tm *tm){
 	static const int mdays[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
@@ -2117,7 +2212,7 @@ int dateparse(const char* datestr, struct timeval* tv, short *offset, int string
 char* datestring(struct timeval* tv){
 	static char dateprintbuf[30];
 	time_t t = tv->tv_sec;
-	struct tm* tminfo = gmtime2(&t);
+	struct tm* tminfo = gmtime_musl(&t);
 	strftime(dateprintbuf, 30, "%Y-%m-%d %H:%M:%S", tminfo);
 	return dateprintbuf;
 }
