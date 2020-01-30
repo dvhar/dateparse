@@ -135,7 +135,7 @@ void runtests(){
 
 	int len = sizeof(dates)/sizeof(char*);
 	int i;
-	short os;
+	int os;
 	date_t d;
 
 	printf("%-63s%-24s%-11s%s\n", "date string", "parsed as", "useconds", "offset");

@@ -17,12 +17,13 @@ extern "C" {
 #define date_t long long // microseconds
 
 //params: date string, result microseconds, result offset, stringlength if available
-int dateparse(const char* datestr, date_t* dt, short* offset, int stringlen);
+int dateparse(const char* datestr, date_t* dt, int* offset, int stringlen);
 #define dateparse_2(D, T)    dateparse(D, T, 0, 0)
 #define dateparse_3(D, T, F) dateparse(D, T, F, 0)
 
 //returns statically allocated date string
 char* datestring(date_t);
+char* datestringfmt(date_t t, const char*);
 
 //convert between struct tm and date_t
 struct tm* gmtime64(date_t);
