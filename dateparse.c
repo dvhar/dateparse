@@ -2054,7 +2054,7 @@ static int monthNum(char* m){
 	return -1;
 }
 
-static int parser2tm(struct parser* p, struct tm* t, date_t* us, short *offset) {
+static int parser2tm(struct parser* p, struct tm* t, date_t* us, int *offset) {
 	int a;
 	memset(t, 0 , sizeof(struct tm));
 	t->tm_isdst = -1;
@@ -2117,8 +2117,8 @@ static int parser2tm(struct parser* p, struct tm* t, date_t* us, short *offset) 
 
 	if (p->offsetbuf[0] && offset){
 		char c = p->offsetbuf[0];
-		short sign;
-		short minuteOffset = 0;
+		int sign;
+		int minuteOffset = 0;
 		if (c == '-') sign = -1;
 		else sign = 1;
 		int i,j=0;
@@ -2147,7 +2147,7 @@ static int parser2tm(struct parser* p, struct tm* t, date_t* us, short *offset) 
 	return 0;
 }
 
-static int parse(struct parser* p, date_t* dt, short *offset){
+static int parse(struct parser* p, date_t* dt, int *offset){
 	if (p->t){
 		*dt = p->t;
 		return 0;
@@ -2165,7 +2165,7 @@ static int parse(struct parser* p, date_t* dt, short *offset){
 	return 0;
 }
 
-int dateparse(const char* datestr, date_t* t, short *offset, int stringlen){
+int dateparse(const char* datestr, date_t* t, int *offset, int stringlen){
 	struct parser p;
 	*t = 0;
 	if (!stringlen)
@@ -2179,5 +2179,11 @@ char* datestring(date_t t){
 	static char dateprintbuf[30];
 	struct tm* tminfo = gmtime64(t);
 	strftime(dateprintbuf, 30, "%Y-%m-%d %H:%M:%S", tminfo);
+	return dateprintbuf;
+}
+char* datestringfmt(date_t t, const char* format){
+	static char dateprintbuf[30];
+	struct tm* tminfo = gmtime64(t);
+	strftime(dateprintbuf, 30, format, tminfo);
 	return dateprintbuf;
 }
