@@ -226,10 +226,8 @@ static void newParser(const char* s, struct parser* p, int stringlen){
 	p->stateDate = dateStart;
 	p->stateTime = timeIgnore;
 	p->preferMonthFirst = 1;
-	p->datestr = p->datestrbuf;
+	p->datestr = (char*)s;
 	p->len = stringlen;
-	//TODO: only copy if using trimExtra
-	strncpy(p->datestr, s, BUFSIZE);
 }
 
 static void foundYear(struct parser* p){
@@ -390,6 +388,10 @@ static void setFullMonth(struct parser* p, char* month){
 }
 static void trimExtra(struct parser* p){
 	if (p->extra > 0) {
+		if (p->datestr != p->datestrbuf){
+			strncpy(p->datestrbuf, p->datestr, BUFSIZE);
+			p->datestr = p->datestrbuf;
+		}
 		p->datestr[p->extra] = 0;
 	}
 }
@@ -1019,7 +1021,7 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
-						return parseTime(buf, p, p->len-1);
+						return parseTime(buf, p, p->len-2);
 					}
 				}
 				break;
@@ -1029,7 +1031,7 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
-						return parseTime(buf, p, p->len-1);
+						return parseTime(buf, p, p->len-2);
 					}
 				}
 				break;
@@ -1039,7 +1041,7 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
-						return parseTime(buf, p, p->len-1);
+						return parseTime(buf, p, p->len-2);
 					}
 				}
 				break;
@@ -1049,7 +1051,7 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 					if (len > i+2) {
 						strncpy(buf, datestr, i);
 						strncpy(buf+i, datestr+i+2, BUFSIZE-i-2);
-						return parseTime(buf, p, p->len-1);
+						return parseTime(buf, p, p->len-2);
 					}
 				}
 			}
@@ -1479,7 +1481,6 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 				//   17:57:51 -0700 -07
 				switch (r) {
 				case '=':
-					// eff you golang
 					if (datestr[i-1] == 'm') {
 						p->extra = i - 2;
 						trimExtra(p);
