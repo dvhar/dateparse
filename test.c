@@ -145,7 +145,7 @@ void runtests(){
 		if (dateparse_3(dates[i], &d, &os)){
 			puts("failed");
 		} else {
-			printf("   %-24s%-12d%d\n", datestring(d), mcs(d), os);
+			printf("   %-24s%-12lld%d\n", datestring(d), mcs(d), os);
 		}
 	}
 }
