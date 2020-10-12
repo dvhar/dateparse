@@ -1,6 +1,8 @@
 Date Parser 
 ---------------------------
 
+### Parse many dates without knowing the format in advance
+
 [This go parser ported to c](https://github.com/araddon/dateparse)
 
 Under construction but approaching usable
@@ -30,6 +32,7 @@ microseconds = tv2d(tv);
 * all functions assume UTC time
 * datestring() returns a statically allocated string, formatted like the 'parsed as' column below
 * stringlength parameter saves a strlen() call if you already know string length
+* offsetMinutes in the examples referes to stuff like '+08:00', not timezones
 
 ### Issues:
 
