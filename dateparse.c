@@ -95,6 +95,31 @@ static char* months[] = {
 	"november",
 	"december"
 };
+unsigned int monthlens[] = { 7,8,5,5,3,4,4,6,9,7,8,8 };
+char* monthnames[] = {
+	"January",
+	"February",
+	"March",
+	"April",
+	"May",
+	"June",
+	"July",
+	"August",
+	"September",
+	"October",
+	"November",
+	"December"
+};
+unsigned int daylens[] = { 6,6,7,9,8,6,8 };
+char* daynames[] = {
+	"Sunday",
+	"Monday",
+	"Tuesday",
+	"Wednesday",
+	"Thursday",
+	"Friday",
+	"Saturday"
+};
 
 struct parser {
 	//loc              *time.Location
@@ -145,7 +170,7 @@ struct parser {
 #define DAYS_PER_400Y (365*400 + 97)
 #define DAYS_PER_100Y (365*100 + 24)
 #define DAYS_PER_4Y   (365*4   + 1)
-int __secs_to_tm(long long t, struct tm *tm){
+int secs_to_tm(long long t, struct tm *tm){
 	long long days, secs, years;
 	int remdays, remsecs, remyears;
 	int qc_cycles, c_cycles, q_cycles;
@@ -204,7 +229,7 @@ int __secs_to_tm(long long t, struct tm *tm){
 struct tm * gmtime64(date_t t){
 	static struct tm tmm;
 	if (t < 0 && t%1000000) t -= 1000000; //microseconds increment seconds digit when negative
-	__secs_to_tm(t/1000000, &tmm);
+	secs_to_tm(t/1000000, &tmm);
 	return &tmm;
 }
 
@@ -2195,8 +2220,5 @@ date_t nowlocal(){
 	return mktimegm(&t);
 }
 date_t nowgm(){
-	time_t sec = time(0);
-	struct tm t;
-	gmtime_r(&sec, &t);
-	return mktimegm(&t);
+	return (date_t)time(0)*1000000;
 }

@@ -25,6 +25,8 @@ int dateparse(const char* datestr, date_t* dt, int* offset, int stringlen);
 char* datestring(date_t);
 char* datestringfmt(date_t t, const char*);
 
+int secs_to_tm(long long t, struct tm *tm);
+
 //convert between struct tm and date_t
 struct tm* gmtime64(date_t);
 date_t mktimegm(const struct tm *tm);
@@ -33,14 +35,10 @@ date_t mktimegm(const struct tm *tm);
 #define mcs(A) (A>=0 ? A%1000000 : (A%1000000 ? 1000000+A%1000000 : 0))
 #define sec(A) (A<0 && A%1000000 ? A/1000000 : A/1000000-1)
 
-//some losers may want to use gross 32bit timeval
-static struct timeval d2tv(date_t dt){
-	struct timeval t;
-	t.tv_sec = sec(dt);
-	t.tv_usec = mcs(dt);
-	return t;
-}
-#define tv2d(T) ((date_t)T.tv_sec*1000000 + T.tv_usec)
+extern char* daynames[];
+extern char* monthnames[];
+extern unsigned int daylens[];
+extern unsigned int monthlens[];
 date_t nowlocal();
 date_t nowgm();
 
