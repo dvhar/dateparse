@@ -41,6 +41,8 @@ static struct timeval d2tv(date_t dt){
 	return t;
 }
 #define tv2d(T) ((date_t)T.tv_sec*1000000 + T.tv_usec)
+date_t nowlocal();
+date_t nowgm();
 
 #ifdef __cplusplus
 }

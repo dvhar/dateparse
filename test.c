@@ -6,6 +6,11 @@ FILE *f;
 
 int main(int argc, char** argv){
 	if (argc > 1){
+		if (!strcmp(argv[1], "now")){
+			puts(datestring(nowlocal()));
+			puts(datestring(nowgm()));
+			return 0;
+		}
 		f = fopen(argv[1], "r");
 		if (!f) f = stdin;
 		runfile();
