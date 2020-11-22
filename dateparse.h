@@ -31,9 +31,10 @@ int secs_to_tm(long long t, struct tm *tm);
 struct tm* gmtime64(date_t);
 date_t mktimegm(const struct tm *tm);
 
-//get seconds and microseconds and correct for negative microsecond rollover
+//get microsecond component (remainder)
 #define mcs(A) (A>=0 ? A%1000000 : (A%1000000 ? 1000000+A%1000000 : 0))
-#define sec(A) (A<0 && A%1000000 ? A/1000000 : A/1000000-1)
+//get unix seconds from date_t for secs_to_tm
+#define sec(A) (A<0 && A%1000000 ? A/1000000-1 : A/1000000)
 
 extern char* daynames[];
 extern char* monthnames[];
@@ -41,6 +42,9 @@ extern unsigned int daylens[];
 extern unsigned int monthlens[];
 date_t nowlocal();
 date_t nowgm();
+
+ //set to 1 to skip dates that are formatted like plain numbers, like unix seconds etc
+extern int noNumericDates;
 
 #ifdef __cplusplus
 }

@@ -8,6 +8,7 @@
 #define date_t long long
 #define BUFSIZE 100
 #define MONTHBUF 14
+int noNumericDates = 0;
 enum dateStates {
 	dateStart,
 	dateDigit,
@@ -1801,6 +1802,8 @@ static int parseTime(const char* datestr, struct parser* p, int stringlen){
 	date_t dt = 0;
 	switch (p->stateDate) {
 	case dateDigit:
+		if (noNumericDates)
+			break;
 		// unixy timestamps ish
 		//  example              ct type
 		//  1499979655583057426  19 nanoseconds

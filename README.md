@@ -9,21 +9,21 @@ Under construction but approaching usable
 
 ### Usage:
 ```
-date_t microseconds;
+date_t date;
 int offsetMinutes;
 
-int err = dateparse(datestring, &microseconds, &offsetMinutes, stringlength);
-int err = dateparse_3(datestring, &microseconds, &offsetMinutes);
-int err = dateparse_2(datestring, &microseconds);
+int err = dateparse(datestring, &date, &offsetMinutes, stringlength);
+int err = dateparse_3(datestring, &date, &offsetMinutes);
+int err = dateparse_2(datestring, &date);
 
-puts(datestring(microseconds));
-puts(datestringfmt(microseconds, "%Y-%m-%d %H:%M:%S"));
+puts(datestring(date));
+puts(datestringfmt(date, "%Y-%m-%d %H:%M:%S"));
 
-struct tm* tm = gmtime64(microseconds);
-microseconds = mktimegm(tm);
+struct tm* tm = gmtime64(date);
+date = mktimegm(tm);
 
-struct timeval tv = d2tv(microseconds);
-microseconds = tv2d(tv);
+struct timeval tv = d2tv(date);
+date = tv2d(tv);
 ```
 
 ### Notes:
